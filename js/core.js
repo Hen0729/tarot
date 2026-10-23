@@ -117,22 +117,13 @@ const MA =
         el.style.display = "";
         el.classList.remove("hide");
       }
-      function show(id, rev) {
-        if (editing) return;
-        if (id == null || id === undefined || !D[id]) return;
-        cur = [id, rev];
-        const c = D[id],
-          u = getCU(id),
-          im = getImg(id),
-          has = u.u || u.r || u.n,
-          box = detBox();
-        revealPanel(box);
-        box.innerHTML = `<div class="det">${im ? `<img src="${im}" class="${rev === true ? "rev" : ""}" alt="">` : ""}<div class="dbody"><h3>${c.sym} ${c.z} <small class="dim">${c.e}・${c.sub}・${esc(deckName(deckId))}</small></h3><p class="${rev !== true ? "hl" : "dim"}"><b>正位：</b>${c.u}</p><p class="${rev === true ? "hl" : "dim"}"><b>逆位：</b>${c.r}</p>${has ? `<div class="pm"><b>🌙 我的牌義</b>${u.u ? `<p><b>正位：</b>${esc(u.u)}</p>` : ""}${u.r ? `<p><b>逆位：</b>${esc(u.r)}</p>` : ""}${u.n ? `<p><b>心得：</b>${esc(u.n)}</p>` : ""}</div>` : ""}<div class="row" style="margin:8px 0 0"><button id="ed">✎ ${has ? "編輯" : "新增"}我的牌義</button><button id="ci">${im ? "更換" : "上傳"}牌面圖</button>${im ? `<button id="cd">刪除卡面</button>` : ""}</div></div></div>`;
-        $("#ed").onclick = edit;
-        $("#ci").onclick = () => {
-          imgTarget = id;
-          $("#f1").click();
-        };
+      function bindDetActions(id, rev) {
+        if ($("#ed")) $("#ed").onclick = edit;
+        if ($("#ci"))
+          $("#ci").onclick = () => {
+            imgTarget = id;
+            $("#f1").click();
+          };
         if ($("#cd"))
           $("#cd").onclick = async function () {
             if (this.dataset.s) {
@@ -145,6 +136,41 @@ const MA =
               this.textContent = "再按一次確認刪除";
             }
           };
+      }
+      function dbodyHtml(c, u, has, im, rev) {
+        return `<div class="dbody"><h3>${c.sym} ${c.z} <small class="dim">${c.e}・${c.sub}・${esc(deckName(deckId))}</small></h3><p class="${rev !== true ? "hl" : "dim"}"><b>正位：</b>${c.u}</p><p class="${rev === true ? "hl" : "dim"}"><b>逆位：</b>${c.r}</p>${has ? `<div class="pm"><b>🌙 我的牌義</b>${u.u ? `<p><b>正位：</b>${esc(u.u)}</p>` : ""}${u.r ? `<p><b>逆位：</b>${esc(u.r)}</p>` : ""}${u.n ? `<p><b>心得：</b>${esc(u.n)}</p>` : ""}</div>` : ""}<div class="row" style="margin:8px 0 0"><button id="ed">✎ ${has ? "編輯" : "新增"}我的牌義</button><button id="ci">${im ? "更換" : "上傳"}牌面圖</button>${im ? `<button id="cd">刪除卡面</button>` : ""}</div></div>`;
+      }
+      function show(id, rev, opts) {
+        if (editing) return;
+        if (id == null || id === undefined || !D[id]) return;
+        opts = opts || {};
+        cur = [id, rev];
+        const c = D[id],
+          u = getCU(id),
+          im = getImg(id),
+          has = !!(u.u || u.r || u.n),
+          box = detBox();
+        revealPanel(box);
+        const keepImg = !!opts.keepImg;
+        const det = box.querySelector(".det");
+        const oldImg = det && det.querySelector("img");
+        const sameImg =
+          keepImg &&
+          im &&
+          oldImg &&
+          oldImg.getAttribute("src") === im;
+        if (sameImg && det) {
+          // 只換文字區，保留已解碼的牌面，避免儲存牌義時整張圖重載閃爍
+          oldImg.classList.toggle("rev", rev === true);
+          const db = det.querySelector(".dbody");
+          const html = dbodyHtml(c, u, has, im, rev);
+          if (db) db.outerHTML = html;
+          else det.insertAdjacentHTML("beforeend", html);
+          if (!im && oldImg) oldImg.remove();
+        } else {
+          box.innerHTML = `<div class="det">${im ? `<img src="${im}" class="${rev === true ? "rev" : ""}" alt="">` : ""}${dbodyHtml(c, u, has, im, rev)}</div>`;
+        }
+        bindDetActions(id, rev);
       }
       function edit() {
         editing = true;
@@ -164,11 +190,11 @@ const MA =
           else delete CU[deckId][id];
           store.set("tarot-custom", CU);
           editing = false;
-          show(...cur);
+          show(cur[0], cur[1], { keepImg: true });
         };
         $("#ec").onclick = () => {
           editing = false;
-          show(...cur);
+          show(cur[0], cur[1], { keepImg: true });
         };
       }
       function face(c, rev, tag, did) {

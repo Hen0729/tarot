@@ -393,10 +393,14 @@
         }
       }
       let cfgQuietUntil = 0;
-      /** 套用雲端設定（牌義／牌陣／牌組類別）；回傳是否有更新 */
+      /** 套用雲端設定；回傳 false 或 { cu, cs, decks } */
       function applyCloudCfg(cfg) {
         if (!cfg || (cfg.u || 0) <= cfgU) return false;
         try {
+          const prevCu = JSON.stringify(CU),
+            prevCs = JSON.stringify(CS),
+            prevDecks = JSON.stringify(DECKS),
+            prevDeckId = deckId;
           const raw = JSON.parse(cfg.cu || "{}");
           const keys = Object.keys(raw || {});
           CU =
@@ -421,13 +425,31 @@
           sset("tarot-decks", DECKS);
           sset("tarot-deck-id", deckId);
           sset("tarot-cfgu", cfgU);
-          return true;
+          return {
+            cu: JSON.stringify(CU) !== prevCu,
+            cs: JSON.stringify(CS) !== prevCs,
+            decks:
+              JSON.stringify(DECKS) !== prevDecks || deckId !== prevDeckId,
+          };
         } catch (e) {
           console.error("套用雲端設定失敗", e);
           return false;
         }
       }
-      function refreshCfgUi() {
+      /** changes: true=整頁刷新；或 { cu, cs, decks } 只動需要的部分（牌義不重繪卡面） */
+      function refreshCfgUi(changes) {
+        if (changes && changes !== true) {
+          if (changes.cs) fillSp();
+          if (changes.decks) {
+            fillDeckSel();
+            redraw();
+          }
+          if ((changes.cu || changes.decks) && cur[0] != null && !editing)
+            show(cur[0], cur[1], { keepImg: true });
+          if (changes.cs && !$("#v-hist").classList.contains("hide"))
+            renderList();
+          return;
+        }
         fillSp();
         fillDeckSel();
         redraw();
@@ -441,7 +463,8 @@
         try {
           const snap = await root.collection("meta").doc("cfg").get();
           if (!snap.exists) return;
-          if (applyCloudCfg(snap.data())) refreshCfgUi();
+          const ch = applyCloudCfg(snap.data());
+          if (ch) refreshCfgUi(ch);
         } catch (e) {
           console.error("拉取設定失敗", e);
         }
@@ -673,7 +696,8 @@
                   }
                   if (syncing || Date.now() < cfgQuietUntil) return;
                   if (!snap.exists) return;
-                  if (applyCloudCfg(snap.data())) refreshCfgUi();
+                  const ch = applyCloudCfg(snap.data());
+                  if (ch) refreshCfgUi(ch);
                 },
                 (e) => console.error("設定即時同步失敗", e),
               );
