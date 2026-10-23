@@ -206,18 +206,23 @@
         margin-bottom: 14px;
       }
       .grid .card {
-        width: 84px;
-        min-width: 84px;
-        height: 120px;
+        width: 96px;
+        min-width: 96px;
+        height: 132px;
+        padding: 6px 4px;
+      }
+      .grid .n {
+        font-size: 13px;
       }
       .grid .z {
-        font-size: 14px;
+        font-size: 17px;
+        line-height: 1.25;
       }
       .grid .e {
         display: none;
       }
       .grid .sym {
-        font-size: 26px;
+        font-size: 28px;
       }
       .entry {
         border: 1px solid var(--bd);
@@ -282,10 +287,11 @@
         font-size: 14px;
       }
       .grid .card.im {
-        height: 120px;
+        height: 132px;
       }
       .grid .card.im .z {
-        font-size: 13px;
+        font-size: 16px;
+        line-height: 1.25;
       }
       .slots {
         display: block;
