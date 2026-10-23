@@ -211,13 +211,13 @@
         height: 120px;
       }
       .grid .z {
-        font-size: 12px;
+        font-size: 14px;
       }
       .grid .e {
         display: none;
       }
       .grid .sym {
-        font-size: 22px;
+        font-size: 26px;
       }
       .entry {
         border: 1px solid var(--bd);
@@ -279,13 +279,13 @@
         transform: none;
       }
       .card.im .z {
-        font-size: 12px;
+        font-size: 14px;
       }
       .grid .card.im {
         height: 120px;
       }
       .grid .card.im .z {
-        font-size: 10px;
+        font-size: 13px;
       }
       .slots {
         display: block;
