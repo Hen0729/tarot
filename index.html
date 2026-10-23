@@ -2002,14 +2002,18 @@
             const r = await fetch(url, {
               headers: { Authorization: "Bearer " + token },
             });
+            const t = await r.text();
             if (r.status === 403) {
-              const t = await r.text();
-              if (/has not been used|disabled|PERMISSION_DENIED/i.test(t))
+              if (/has not been used|is disabled/i.test(t))
                 throw new Error(
-                  "請先啟用 Cloud Firestore API（Firebase 建立 Firestore 資料庫，並到 Google Cloud 開啟 API）",
+                  "請先啟用 Cloud Firestore API（Google Cloud 主控台）",
+                );
+              if (/insufficient permissions|PERMISSION_DENIED/i.test(t))
+                throw new Error(
+                  "Firestore 規則拒絕存取：請到「規則」分頁允許已登入使用者讀寫",
                 );
             }
-            if (r.status === 404 && /database/i.test(await r.clone().text().catch(() => "")))
+            if (r.status === 404 && /database/i.test(t))
               throw new Error("請先在 Firebase 建立 Firestore 資料庫");
           }
           fbAuth.onAuthStateChanged(async (u) => {
