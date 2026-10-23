@@ -2154,6 +2154,38 @@
             if (r.status === 404 && /database/i.test(t))
               throw new Error("請先在 Firebase 建立 Firestore 資料庫");
           }
+          let unsubImgs = null,
+            liveSkip = true,
+            liveTimer = null;
+          async function refreshImgsLive() {
+            if (!fbUser || !fbSt || syncing) return;
+            await pullImages();
+            redraw();
+            refreshView(cur[0], cur[1]);
+          }
+          function watchCloudImgs() {
+            const root = userCol();
+            if (!root) return;
+            if (unsubImgs) {
+              unsubImgs();
+              unsubImgs = null;
+            }
+            liveSkip = true;
+            unsubImgs = root
+              .collection("meta")
+              .doc("imgs")
+              .onSnapshot(
+                () => {
+                  // 第一次是訂閱當下狀態，syncAll 已拉過，略過
+                  if (liveSkip) {
+                    liveSkip = false;
+                    return;
+                  }
+                  refreshImgsLive();
+                },
+                (e) => console.error("圖片即時同步失敗", e),
+              );
+          }
           fbAuth.onAuthStateChanged(async (u) => {
             fbUser = u;
             if (u) {
@@ -2172,16 +2204,26 @@
                 sset("tarot-cfgu", cfgU);
               }
               await syncAll();
+              watchCloudImgs();
+            } else if (unsubImgs) {
+              unsubImgs();
+              unsubImgs = null;
             }
           });
-          // 切回分頁時再拉一次圖（電腦傳完、手機不用殺 App）
+          // 切回分頁／視窗時再同步（不必整頁刷新）
           document.addEventListener("visibilitychange", () => {
             if (document.hidden || !fbUser || !fbSt || syncing) return;
-            pullImages().then(() => {
-              redraw();
-              refreshView(cur[0], cur[1]);
-            });
+            refreshImgsLive();
           });
+          window.addEventListener("focus", () => {
+            if (!fbUser || !fbSt || syncing) return;
+            refreshImgsLive();
+          });
+          // 頁面開著時定期補拉（即時監聽漏掉時的後備）
+          liveTimer = setInterval(() => {
+            if (document.hidden || !fbUser || !fbSt || syncing) return;
+            refreshImgsLive();
+          }, 20000);
           try {
             await fbAuth.signInWithEmailAndPassword(
               FIREBASE_AUTH.email,
