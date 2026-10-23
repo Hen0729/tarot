@@ -1000,13 +1000,14 @@
           key = ik(id);
         IMG[key] = d;
         idbOp((s) => s.put(d, key));
-        await pushImgCloud(key, d);
+        // 雲端背景上傳，不擋本機畫面更新
+        pushImgCloud(key, d);
       }
       async function remImg(id) {
         const key = ik(id);
         delete IMG[key];
         idbOp((s) => s.delete(key));
-        await deleteImgCloud(key);
+        deleteImgCloud(key);
       }
       async function remDeckImgs(did) {
         Object.keys(IMG)
@@ -1105,13 +1106,14 @@
         redraw();
       };
       $("#f1").onchange = async (e) => {
-        const f = e.target.files[0];
-        if (f && imgTarget != null) {
+        const f = e.target.files[0],
+          id = imgTarget;
+        if (f && id != null) {
           try {
-            await addImg(imgTarget, f);
+            await addImg(id, f);
           } catch (x) {}
           redraw();
-          show(...cur);
+          show(id, cur[0] === id ? cur[1] : undefined);
         }
         e.target.value = "";
       };
