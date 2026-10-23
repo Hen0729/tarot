@@ -1,0 +1,1872 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>偉特塔羅 · 抽牌與筆記</title>
+    <style>
+      :root {
+        --bg: #f4efe6;
+        --fg: #2a2433;
+        --card: #fffaf0;
+        --acc: #7a4fb0;
+        --mut: #80788a;
+        --bd: #d8cfbf;
+        --back: #5b3d8f;
+        box-sizing: border-box;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #15121f;
+          --fg: #ece6f5;
+          --card: #221d33;
+          --acc: #c3a2f2;
+          --mut: #9a92aa;
+          --bd: #3a3250;
+          --back: #3c2a66;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #15121f;
+        --fg: #ece6f5;
+        --card: #221d33;
+        --acc: #c3a2f2;
+        --mut: #9a92aa;
+        --bd: #3a3250;
+        --back: #3c2a66;
+      }
+      html {
+        scroll-padding-top: env(safe-area-inset-top, 0px);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          15px/1.6 "Noto Serif TC",
+          "PingFang TC",
+          "Microsoft JhengHei",
+          serif;
+      }
+      main {
+        max-width: 980px;
+        margin: auto;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 4px 0 12px;
+        color: var(--acc);
+      }
+      nav {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      button,
+      select,
+      input,
+      textarea {
+        font: inherit;
+        color: var(--fg);
+        background: var(--card);
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        padding: 6px 12px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--acc);
+      }
+      button.on,
+      button.pri {
+        background: var(--acc);
+        color: var(--bg);
+        border-color: var(--acc);
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .row input[type="text"] {
+        flex: 1;
+        min-width: 180px;
+      }
+      .slots {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 16px 0;
+      }
+      .slot {
+        text-align: center;
+        font-size: 12px;
+        color: var(--mut);
+      }
+      .card {
+        width: 112px;
+        height: 184px;
+        border-radius: 10px;
+        border: 2px solid var(--bd);
+        background: var(--card);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        cursor: pointer;
+        padding: 6px;
+        transition: transform 0.2s;
+        user-select: none;
+      }
+      .card:hover {
+        transform: translateY(-4px);
+        border-color: var(--acc);
+      }
+      .card.back {
+        background:
+          repeating-linear-gradient(
+            45deg,
+            var(--back) 0 8px,
+            transparent 8px 16px
+          ),
+          var(--back);
+        color: #fff;
+        font-size: 30px;
+      }
+      .card .sym {
+        font-size: 30px;
+      }
+      .card .n {
+        font-size: 11px;
+        color: var(--mut);
+      }
+      .card .z {
+        font-weight: 700;
+        font-size: 15px;
+        text-align: center;
+      }
+      .card .e {
+        font-size: 10px;
+        color: var(--mut);
+        text-align: center;
+      }
+      .card.rev .sym,
+      .card.rev .z {
+        transform: rotate(180deg);
+      }
+      .card .tag {
+        font-size: 11px;
+        color: var(--acc);
+      }
+      .detail {
+        border: 1px solid var(--bd);
+        background: var(--card);
+        border-radius: 12px;
+        padding: 14px;
+        min-height: 120px;
+      }
+      .detail h3 {
+        margin: 0 0 6px;
+        color: var(--acc);
+      }
+      .detail p {
+        margin: 4px 0;
+      }
+      .hl {
+        border-left: 3px solid var(--acc);
+        padding-left: 8px;
+      }
+      .dim {
+        color: var(--mut);
+      }
+      #deck-det {
+        margin-bottom: 20px;
+      }
+      #deck-bar {
+        margin-bottom: 12px;
+      }
+      #deck-bar select {
+        min-width: 140px;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 14px;
+      }
+      .grid .card {
+        width: 84px;
+        height: 120px;
+      }
+      .grid .z {
+        font-size: 12px;
+      }
+      .grid .e {
+        display: none;
+      }
+      .grid .sym {
+        font-size: 22px;
+      }
+      .entry {
+        border: 1px solid var(--bd);
+        background: var(--card);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+      .entry textarea {
+        width: 100%;
+        min-height: 70px;
+        margin-top: 6px;
+      }
+      .chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin: 8px 0;
+      }
+      .chip {
+        border: 1px solid var(--bd);
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .chip:hover {
+        border-color: var(--acc);
+      }
+      .mut {
+        color: var(--mut);
+        font-size: 13px;
+      }
+      .hide {
+        display: none;
+      }
+      .card img {
+        width: 100%;
+        flex: 1;
+        min-height: 0;
+        object-fit: contain;
+        border-radius: 4px;
+      }
+      .card.rev img {
+        transform: rotate(180deg);
+      }
+      .card.im {
+        justify-content: space-between;
+        padding: 4px;
+      }
+      .card.im .n,
+      .card.im .e {
+        display: none;
+      }
+      .card.im.rev .z {
+        transform: none;
+      }
+      .card.im .z {
+        font-size: 12px;
+      }
+      .grid .card.im {
+        height: 150px;
+      }
+      .grid .card.im .z {
+        font-size: 10px;
+      }
+      .slots {
+        display: block;
+        overflow-x: auto;
+        padding-bottom: 6px;
+      }
+      .flow {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .lay {
+        position: relative;
+        margin: 0 auto;
+      }
+      .lay .slot {
+        position: absolute;
+      }
+      .lb {
+        height: 20px;
+        line-height: 20px;
+        white-space: nowrap;
+      }
+      .slots.sm {
+        --cw: 92px;
+        --ch: 158px;
+      }
+      .hs {
+        --cw: 78px;
+        --ch: 134px;
+        overflow-x: auto;
+        margin: 8px 0;
+      }
+      .slots .card,
+      .hs .card {
+        width: var(--cw, 112px);
+        height: var(--ch, 184px);
+      }
+      .hs .slot {
+        font-size: 11px;
+      }
+      .hs .card .z {
+        font-size: 11px;
+      }
+      .hs .card .sym {
+        font-size: 20px;
+      }
+      .hs .card .e,
+      .hs .card .n {
+        display: none;
+      }
+      .slot.rot {
+        z-index: 2;
+      }
+      .slot.rot .card,
+      .slot.rot .card:hover {
+        transform: rotate(90deg) scale(0.82);
+        margin-top: 20px;
+      }
+      .slot.rot .lb {
+        position: absolute;
+        top: calc(var(--ch, 184px) + 20px);
+        left: 0;
+        right: 0;
+      }
+      .card.back.empty {
+        background: transparent;
+        border-style: dashed;
+        cursor: default;
+      }
+      .cg {
+        display: grid;
+        grid-template-columns: repeat(7, 46px);
+        gap: 4px;
+      }
+      .cg button {
+        height: 58px;
+        padding: 0;
+        font-size: 11px;
+        line-height: 1.2;
+      }
+      details {
+        margin: 6px 0;
+      }
+      .det {
+        display: flex;
+        gap: 14px;
+      }
+      .det img {
+        height: 240px;
+        border-radius: 6px;
+        border: 1px solid var(--bd);
+      }
+      .det img.rev {
+        transform: rotate(180deg);
+      }
+      .dbody {
+        flex: 1;
+        min-width: 0;
+      }
+      .detail textarea {
+        width: 100%;
+        min-height: 54px;
+        margin: 2px 0 6px;
+      }
+      .pm {
+        background: color-mix(in srgb, var(--acc) 12%, transparent);
+        border-radius: 8px;
+        padding: 6px 10px;
+        margin-top: 8px;
+      }
+      @media (max-width: 560px) {
+        .det {
+          flex-direction: column;
+          align-items: center;
+        }
+      }
+      .tip {
+        position: fixed;
+        z-index: 1000;
+        max-width: min(320px, calc(100vw - 24px));
+        pointer-events: none;
+        border: 1px solid var(--bd);
+        background: var(--card);
+        border-radius: 12px;
+        padding: 12px 14px;
+        box-shadow: 0 10px 28px color-mix(in srgb, var(--fg) 18%, transparent);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .tip h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        color: var(--acc);
+      }
+      .tip p {
+        margin: 4px 0;
+      }
+      .tip img {
+        display: block;
+        max-height: 140px;
+        margin: 0 auto 8px;
+        border-radius: 6px;
+        border: 1px solid var(--bd);
+      }
+      .tip .pm {
+        margin-top: 6px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>🔮 偉特塔羅 · 抽牌與筆記</h1>
+      <nav>
+        <button id="t-draw" class="on">抽牌</button>
+        <button id="t-hist">我的紀錄</button>
+        <button id="t-deck">78 張牌庫</button>
+      </nav>
+
+      <section id="v-draw">
+        <div class="row">
+          <input id="q" type="text" placeholder="寫下你的問題（可留空）" />
+          <select id="sp"></select>
+          <select id="duse" title="抽牌使用的牌組"></select>
+          <label class="mut">
+            <input type="checkbox" id="rv" checked style="padding: 0" />
+            含逆位
+          </label>
+          <button class="pri" id="go">洗牌抽牌</button>
+        </div>
+        <div class="slots" id="slots">
+          <span class="mut">按「洗牌抽牌」開始，點擊牌背翻開。</span>
+        </div>
+        <div class="row" id="acts" style="justify-content: center"></div>
+        <div class="detail" id="det">
+          <span class="dim">滑過或點擊任一張牌，即可查看牌義。</span>
+        </div>
+      </section>
+
+      <section id="v-hist" class="hide">
+        <div class="row">
+          <button id="addm">＋ 手動新增紀錄</button>
+          <span class="mut">紀錄存在此瀏覽器中，可隨時編輯問題與筆記。</span>
+        </div>
+        <div id="list"></div>
+      </section>
+
+      <section id="v-deck" class="hide">
+        <div class="row" id="deck-bar">
+          <span class="mut">牌組類別</span>
+          <select id="dsel"></select>
+          <button id="dadd">＋ 新增</button>
+          <button id="dren">重新命名</button>
+          <button id="ddel">刪除類別</button>
+        </div>
+        <div class="detail hide" id="deck-det"></div>
+        <div class="grid" id="deck"></div>
+      </section>
+      <input type="file" id="fi" accept="image/*" multiple class="hide" />
+      <input type="file" id="f1" accept="image/*" class="hide" />
+      <div class="tip hide" id="tip"></div>
+    </main>
+    <script>
+      const MA =
+        "愚者|The Fool|新開始、自由、冒險|魯莽、猶豫、天真過頭;魔術師|The Magician|創造力、行動力、善用資源|操弄、欺瞞、才能浪費;女祭司|The High Priestess|直覺、潛意識、神祕|忽視直覺、隱藏動機;皇后|The Empress|豐盛、滋養、感官享受|過度依賴、停滯、過度保護;皇帝|The Emperor|權威、秩序、穩定|專制、僵化、失控;教皇|The Hierophant|傳統、信仰、指引|打破常規、盲從;戀人|The Lovers|愛、選擇、和諧|失衡、錯誤抉擇;戰車|The Chariot|意志、勝利、前進|失控、方向不明;力量|Strength|勇氣、耐心、柔韌|自我懷疑、軟弱;隱者|The Hermit|內省、獨處、智慧|孤立、逃避;命運之輪|Wheel of Fortune|轉機、循環、命運|厄運、抗拒改變;正義|Justice|公正、因果、真相|不公、逃避責任;倒吊人|The Hanged Man|犧牲、換位思考、暫停|拖延、無謂犧牲;死神|Death|結束、轉化、重生|抗拒改變、停滯;節制|Temperance|平衡、調和、耐心|失衡、過度;惡魔|The Devil|束縛、慾望、執著|解脫、覺醒;高塔|The Tower|突變、崩解、覺醒|逃過一劫、延遲的災難;星星|The Star|希望、療癒、靈感|失望、失去信心;月亮|The Moon|不安、幻象、潛意識|迷霧散去、釐清恐懼;太陽|The Sun|喜悅、成功、活力|過度樂觀、短暫陰霾;審判|Judgement|覺醒、召喚、重生|自我懷疑、拒絕反省;世界|The World|圓滿、完成、整合|未竟、遲滯".split(
+          ";",
+        );
+      const SU = [
+        ["權杖", "Wands", "🔥", "事業、熱情與行動"],
+        ["聖杯", "Cups", "💧", "情感與人際關係"],
+        ["寶劍", "Swords", "🌬️", "思想、溝通與衝突"],
+        ["錢幣", "Pentacles", "🌍", "金錢、工作與物質"],
+      ];
+      const RK =
+        "王牌|Ace|新的起點、潛能萌芽|延遲、錯失時機;二|Two|抉擇、平衡、合作|猶豫、失衡;三|Three|成長、合作、初步成果|受阻、意見分歧;四|Four|穩定、休憩、鞏固|停滯、不安;五|Five|衝突、挑戰、損失|緩和、走出低谷;六|Six|和諧、過渡、獲得支援|停滯、難以前進;七|Seven|堅持、評估、考驗|動搖、白費力氣;八|Eight|行動、進展、專注|受阻、分心;九|Nine|接近完成、韌性、累積|疲憊、過度防備;十|Ten|圓滿、終點、承擔|重擔、結束後的失落;侍者|Page|好奇、消息、學習|不成熟、壞消息;騎士|Knight|追求、行動、衝勁|躁進、半途而廢;王后|Queen|成熟、關懷、內在掌握|情緒化、失衡;國王|King|掌控、責任、領導|濫權、專橫".split(
+          ";",
+        );
+      const D = [];
+      MA.forEach((s, i) => {
+        const [z, e, u, r] = s.split("|");
+        D.push({ id: i, z, e, sym: "✦", n: i, u, r, sub: "大阿爾卡納" });
+      });
+      SU.forEach((su, si) =>
+        RK.forEach((s, ri) => {
+          const [z, e, u, r] = s.split("|");
+          D.push({
+            id: 22 + si * 14 + ri,
+            z: su[0] + z,
+            e: (ri < 10 && ri > 0 ? e : e) + " of " + su[1],
+            sym: su[2],
+            n:
+              ri < 10
+                ? ri == 0
+                  ? "A"
+                  : ri + 1
+                : ["P", "Kn", "Q", "K"][ri - 10],
+            u: su[3] + "面向：" + u,
+            r: su[3] + "面向：" + r,
+            sub: "小阿爾卡納・" + su[0],
+          });
+        }),
+      );
+      D.forEach((c) => {
+        const x = c.e.match(
+          /^(Ace|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Page|Knight|Queen|King) of/,
+        );
+      });
+      const $ = (s) => document.querySelector(s),
+        mem = {};
+      const store = {
+        get(k, d) {
+          try {
+            const v = localStorage.getItem(k);
+            return v ? JSON.parse(v) : d;
+          } catch (e) {
+            return mem[k] ?? d;
+          }
+        },
+        set(k, v) {
+          try {
+            localStorage.setItem(k, JSON.stringify(v));
+          } catch (e) {
+            mem[k] = v;
+          }
+        },
+      };
+      let hist = store.get("tarot-hist", []),
+        drawn = [],
+        pinned = null;
+      const save = () => store.set("tarot-hist", hist);
+      let _cuRaw = store.get("tarot-custom", {}),
+        editing = false,
+        cur = [0, undefined];
+      let DECKS = store.get("tarot-decks", [{ id: "rws", name: "偉特塔羅" }]);
+      if (!Array.isArray(DECKS) || !DECKS.length)
+        DECKS = [{ id: "rws", name: "偉特塔羅" }];
+      let deckId = store.get("tarot-deck-id", DECKS[0].id);
+      if (!DECKS.some((d) => d.id === deckId)) deckId = DECKS[0].id;
+      let CU = (function (raw) {
+        const keys = Object.keys(raw || {});
+        if (!keys.length) return { [deckId]: {} };
+        if (keys.every((k) => /^\d+$/.test(k))) return { rws: raw };
+        return raw;
+      })(_cuRaw);
+      if (!CU[deckId]) CU[deckId] = {};
+      let IMG = {};
+      const saveDecks = () => {
+        store.set("tarot-decks", DECKS);
+        store.set("tarot-deck-id", deckId);
+      };
+      const deckName = (id) =>
+        (DECKS.find((d) => d.id === id) || {}).name || id;
+      function ik(id, did) {
+        return (did || deckId) + ":" + id;
+      }
+      function getImg(id, did) {
+        return IMG[ik(id, did)];
+      }
+      function getCU(id) {
+        if (!CU[deckId]) CU[deckId] = {};
+        return CU[deckId][id] || {};
+      }
+      const detBox = () =>
+        !$("#v-deck").classList.contains("hide") && $("#deck-det")
+          ? $("#deck-det")
+          : $("#det");
+      function show(id, rev) {
+        if (editing) return;
+        cur = [id, rev];
+        const c = D[id],
+          u = getCU(id),
+          im = getImg(id),
+          has = u.u || u.r || u.n,
+          box = detBox();
+        box.classList.remove("hide");
+        box.innerHTML = `<div class="det">${im ? `<img src="${im}" class="${rev === true ? "rev" : ""}" alt="">` : ""}<div class="dbody"><h3>${c.sym} ${c.z} <small class="dim">${c.e}・${c.sub}・${esc(deckName(deckId))}</small></h3><p class="${rev !== true ? "hl" : "dim"}"><b>正位：</b>${c.u}</p><p class="${rev === true ? "hl" : "dim"}"><b>逆位：</b>${c.r}</p>${has ? `<div class="pm"><b>🌙 我的牌義</b>${u.u ? `<p><b>正位：</b>${esc(u.u)}</p>` : ""}${u.r ? `<p><b>逆位：</b>${esc(u.r)}</p>` : ""}${u.n ? `<p><b>心得：</b>${esc(u.n)}</p>` : ""}</div>` : ""}<div class="row" style="margin:8px 0 0"><button id="ed">✎ ${has ? "編輯" : "新增"}我的牌義</button><button id="ci">${im ? "更換" : "上傳"}牌面圖</button>${im ? `<button id="cd">刪除卡面</button>` : ""}</div></div></div>`;
+        $("#ed").onclick = edit;
+        $("#ci").onclick = () => {
+          imgTarget = id;
+          $("#f1").click();
+        };
+        if ($("#cd"))
+          $("#cd").onclick = function () {
+            if (this.dataset.s) {
+              delete IMG[ik(id)];
+              idbOp((s) => s.delete(ik(id)));
+              redraw();
+              show(...cur);
+            } else {
+              this.dataset.s = 1;
+              this.textContent = "再按一次確認刪除";
+            }
+          };
+      }
+      function edit() {
+        editing = true;
+        const id = cur[0],
+          c = D[id],
+          u = getCU(id),
+          box = detBox();
+        box.innerHTML = `<h3>✎ ${c.z}（${esc(deckName(deckId))}）：我的牌義</h3><label class="mut">個人正位牌義</label><textarea id="eu">${esc(u.u || "")}</textarea><label class="mut">個人逆位牌義</label><textarea id="er">${esc(u.r || "")}</textarea><label class="mut">心得／聯想／相關經驗</label><textarea id="en">${esc(u.n || "")}</textarea><div class="row"><button class="pri" id="es">儲存</button><button id="ec">取消</button></div>`;
+        $("#es").onclick = () => {
+          const v = {
+            u: $("#eu").value.trim(),
+            r: $("#er").value.trim(),
+            n: $("#en").value.trim(),
+          };
+          if (!CU[deckId]) CU[deckId] = {};
+          if (v.u || v.r || v.n) CU[deckId][id] = v;
+          else delete CU[deckId][id];
+          store.set("tarot-custom", CU);
+          editing = false;
+          show(...cur);
+        };
+        $("#ec").onclick = () => {
+          editing = false;
+          show(...cur);
+        };
+      }
+      function face(c, rev, tag, did) {
+        const im = getImg(c.id, did);
+        return `<div class="card ${rev ? "rev" : ""}${im ? " im" : ""}" data-id="${c.id}" data-rev="${rev ? 1 : 0}"><span class="n">${c.n}</span>${im ? `<img src="${im}" alt="">` : `<span class="sym">${c.sym}</span>`}<span class="z">${c.z}</span><span class="e">${c.e}</span>${tag ? `<span class="tag">${rev ? "逆位" : "正位"}</span>` : ""}</div>`;
+      }
+      function bindHover(root) {
+        root.querySelectorAll(".card:not(.back)").forEach((el) => {
+          const f = () =>
+            show(
+              +el.dataset.id,
+              el.dataset.rev == "1"
+                ? true
+                : el.dataset.rev == "0" && el.closest("#slots,#list")
+                  ? false
+                  : undefined,
+            );
+          el.onmouseenter = f;
+          el.onclick = f;
+        });
+      }
+      function tipHTML(id) {
+        const c = D[id],
+          u = getCU(id),
+          im = getImg(id),
+          has = u.u || u.r || u.n;
+        return `${im ? `<img src="${im}" alt="">` : ""}<h3>${c.sym} ${esc(c.z)}</h3><p class="dim">${esc(c.e)}・${esc(c.sub)}・${esc(deckName(deckId))}</p><p><b>正位：</b>${esc(c.u)}</p><p><b>逆位：</b>${esc(c.r)}</p>${has ? `<div class="pm"><b>🌙 我的牌義</b>${u.u ? `<p><b>正位：</b>${esc(u.u)}</p>` : ""}${u.r ? `<p><b>逆位：</b>${esc(u.r)}</p>` : ""}${u.n ? `<p><b>心得：</b>${esc(u.n)}</p>` : ""}</div>` : ""}`;
+      }
+      function tipAt(el, id) {
+        const tip = $("#tip");
+        tip.innerHTML = tipHTML(id);
+        tip.classList.remove("hide");
+        const r = el.getBoundingClientRect(),
+          tw = tip.offsetWidth,
+          th = tip.offsetHeight;
+        let left = r.right + 12,
+          top = r.top;
+        if (left + tw > innerWidth - 8) left = r.left - tw - 12;
+        if (left < 8) left = 8;
+        if (top + th > innerHeight - 8) top = Math.max(8, innerHeight - th - 8);
+        if (top < 8) top = 8;
+        tip.style.left = left + "px";
+        tip.style.top = top + "px";
+      }
+      const tipHide = () => $("#tip").classList.add("hide");
+      function bindDeck() {
+        $("#deck")
+          .querySelectorAll(".card")
+          .forEach((el) => {
+            el.onmouseenter = () => tipAt(el, +el.dataset.id);
+            el.onmouseleave = tipHide;
+            el.onclick = () => {
+              tipHide();
+              show(+el.dataset.id);
+            };
+          });
+      }
+      let imgTarget = null,
+        pos = [],
+        spName = "";
+      const SP = {
+        one: ["單張", ["指引"]],
+        three: ["三張：過去／現在／未來", ["過去", "現在", "未來"]],
+        four: ["四元素", ["火・行動", "水・情感", "風・思想", "土・現實"]],
+        choice: [
+          "二選一",
+          ["現況", "選項A過程", "選項A結果", "選項B過程", "選項B結果"],
+        ],
+        five: ["五張牌陣", ["現況", "挑戰", "根源", "建議", "結果"]],
+        rel: [
+          "關係牌陣",
+          ["我", "對方", "關係現況", "我的期待", "對方的期待", "關係走向"],
+        ],
+        horse: [
+          "馬蹄牌陣",
+          ["過去", "現在", "隱藏影響", "自己", "他人", "建議", "結果"],
+        ],
+        celtic: [
+          "凱爾特十字",
+          [
+            "現況",
+            "挑戰",
+            "潛意識根基",
+            "過去",
+            "顯意識目標",
+            "近期未來",
+            "自我態度",
+            "外在環境",
+            "希望與恐懼",
+            "最終結果",
+          ],
+        ],
+        year: [
+          "年度十二個月",
+          [
+            "一月",
+            "二月",
+            "三月",
+            "四月",
+            "五月",
+            "六月",
+            "七月",
+            "八月",
+            "九月",
+            "十月",
+            "十一月",
+            "十二月",
+          ],
+        ],
+      };
+      function renderDraw() {
+        const n = drawn.length;
+        if (!n) return;
+        $("#slots").className = "slots" + (n >= 6 ? " sm" : "");
+        $("#slots").innerHTML = drawn
+          .map(
+            (d, i) =>
+              `<div class="slot">${pos[i]}<br>${d.open ? face(D[d.id], d.r, true) : `<div class="card back" data-i="${i}">✦</div>`}</div>`,
+          )
+          .join("");
+        $("#slots")
+          .querySelectorAll(".card.back")
+          .forEach(
+            (el) =>
+              (el.onclick = () => {
+                const d = drawn[+el.dataset.i];
+                d.open = true;
+                renderDraw();
+                show(d.id, d.r);
+              }),
+          );
+        bindHover($("#slots"));
+        $("#acts").innerHTML =
+          `<button id="all">全部翻開</button>${drawn.every((d) => d.open) ? '<button class="pri" id="sv">儲存到紀錄</button>' : ""}`;
+        $("#all").onclick = () => {
+          drawn.forEach((d) => (d.open = true));
+          renderDraw();
+        };
+        if ($("#sv"))
+          $("#sv").onclick = () => {
+            hist.unshift({
+              id: Date.now(),
+              t: new Date().toLocaleString("zh-TW"),
+              q: $("#q").value,
+              note: "",
+              spread: spName + "：" + pos.join("/"),
+              cards: drawn.map((d, i) => ({ i: d.id, r: d.r, p: pos[i] })),
+            });
+            save();
+            drawn = [];
+            $("#slots").innerHTML =
+              '<span class="mut">已儲存！可到「我的紀錄」補寫筆記。</span>';
+            $("#acts").innerHTML = "";
+            tab("hist");
+          };
+      }
+      $("#go").onclick = () => {
+        const a = [...Array(78).keys()];
+        for (let i = 77; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        const s = SP[$("#sp").value];
+        spName = s[0];
+        pos = s[1];
+        drawn = a
+          .slice(0, pos.length)
+          .map((id) => ({
+            id,
+            r: $("#rv").checked && Math.random() < 0.5,
+            open: false,
+          }));
+        renderDraw();
+      };
+      const esc = (s) =>
+        String(s).replace(
+          /[&<>"]/g,
+          (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[m],
+        );
+      function renderList() {
+        const L = $("#list");
+        if (!hist.length) {
+          L.innerHTML = '<p class="mut">還沒有紀錄。</p>';
+          return;
+        }
+        L.innerHTML = hist
+          .map(
+            (
+              h,
+            ) => `<div class="entry" data-h="${h.id}"><div class="mut">${h.t}・${esc(h.spread || "自訂")}</div>
+ <input type="text" class="hq" style="width:100%;margin-top:6px" placeholder="問題" value="${esc(h.q)}">
+ <div class="chips">${h.cards.map((c, k) => `<span class="chip" data-id="${c.i}" data-rev="${c.r ? 1 : 0}">${c.p ? c.p + "：" : ""}${D[c.i].z}${c.r ? "（逆）" : ""} <b class="x" data-k="${k}">×</b></span>`).join("")}</div>
+ <div class="row"><select class="ac">${D.map((c) => `<option value="${c.id}">${c.z}</option>`).join("")}</select><label class="mut"><input type="checkbox" class="ar" style="padding:0"> 逆位</label><button class="ab">加入此牌</button></div>
+ <textarea class="hn" placeholder="我的塔羅筆記…">${esc(h.note)}</textarea>
+ <div class="row" style="margin:6px 0 0"><button class="del">刪除此紀錄</button></div></div>`,
+          )
+          .join("");
+        L.querySelectorAll(".entry").forEach((el) => {
+          const h = hist.find((x) => x.id == el.dataset.h);
+          el.querySelector(".hq").oninput = (e) => {
+            h.q = e.target.value;
+            save();
+          };
+          el.querySelector(".hn").oninput = (e) => {
+            h.note = e.target.value;
+            save();
+          };
+          el.querySelector(".ab").onclick = () => {
+            h.cards.push({
+              i: +el.querySelector(".ac").value,
+              r: el.querySelector(".ar").checked,
+              p: "",
+            });
+            save();
+            renderList();
+          };
+          {
+            const b = el.querySelector(".del");
+            b.onclick = () => {
+              if (b.dataset.s) {
+                hist = hist.filter((x) => x !== h);
+                save();
+                renderList();
+              } else {
+                b.dataset.s = 1;
+                b.textContent = "再按一次確認刪除";
+              }
+            };
+          }
+          el.querySelectorAll(".chip").forEach((c) => {
+            const f = () => show(+c.dataset.id, c.dataset.rev == "1");
+            c.onmouseenter = f;
+            c.onclick = (e) => {
+              if (e.target.classList.contains("x")) {
+                h.cards.splice(+e.target.dataset.k, 1);
+                save();
+                renderList();
+              } else f();
+            };
+          });
+        });
+      }
+      $("#addm").onclick = () => {
+        hist.unshift({
+          id: Date.now(),
+          t: new Date().toLocaleString("zh-TW"),
+          q: "",
+          note: "",
+          spread: "",
+          cards: [],
+        });
+        save();
+        renderList();
+      };
+      $("#deck").innerHTML = D.map((c) => face(c, false, false)).join("");
+      bindDeck();
+      function tab(t) {
+        ["draw", "hist", "deck"].forEach((k) => {
+          $("#v-" + k).classList.toggle("hide", k != t);
+          $("#t-" + k).classList.toggle("on", k == t);
+        });
+        if (t == "hist") renderList();
+      }
+      ["draw", "hist", "deck"].forEach(
+        (k) => ($("#t-" + k).onclick = () => tab(k)),
+      );
+      $("#sp").innerHTML = Object.entries(SP)
+        .map(
+          ([k, v]) =>
+            `<option value="${k}"${k == "three" ? " selected" : ""}>${v[0]}（${v[1].length}張）</option>`,
+        )
+        .join("");
+      const idb = new Promise((r) => {
+        try {
+          const q = indexedDB.open("tarot", 1);
+          q.onupgradeneeded = () => q.result.createObjectStore("img");
+          q.onsuccess = () => r(q.result);
+          q.onerror = () => r(null);
+        } catch (e) {
+          r(null);
+        }
+      });
+      const idbOp = async (f) => {
+        const db = await idb;
+        if (!db) return;
+        try {
+          return await new Promise((r) => {
+            const t = db.transaction("img", "readwrite"),
+              x = f(t.objectStore("img"));
+            t.oncomplete = () => r(x);
+            t.onerror = () => r();
+          });
+        } catch (e) {}
+      };
+      function redraw() {
+        $("#deck").innerHTML = D.map((c) => face(c, false, false)).join("");
+        bindDeck();
+        if (drawn.length) renderDraw();
+        if (!$("#v-hist").classList.contains("hide")) renderList();
+      }
+      const shrink = (f) =>
+        new Promise((ok, no) => {
+          const u = URL.createObjectURL(f),
+            i = new Image();
+          i.onload = () => {
+            const k = Math.min(1, 460 / i.height),
+              cv = document.createElement("canvas");
+            cv.width = i.width * k;
+            cv.height = i.height * k;
+            cv.getContext("2d").drawImage(i, 0, 0, cv.width, cv.height);
+            URL.revokeObjectURL(u);
+            ok(cv.toDataURL("image/jpeg", 0.85));
+          };
+          i.onerror = no;
+          i.src = u;
+        });
+      function idOf(n) {
+        n = n.toLowerCase();
+        let m = n.match(
+          /(wands?|cups?|swords?|pent\w*|coins?)[\s_-]*(\d{1,2})/,
+        );
+        if (m) {
+          const s = /^w/.test(m[1])
+              ? 0
+              : /^cu/.test(m[1])
+                ? 1
+                : /^s/.test(m[1])
+                  ? 2
+                  : 3,
+            r = +m[2];
+          return r >= 1 && r <= 14 ? 22 + s * 14 + r - 1 : null;
+        }
+        m = n.match(
+          /(?:rws[\s_-]*tarot[\s_-]*|^m|^major[\s_-]*|^)(\d{1,2})(?!\d)/,
+        );
+        return m && +m[1] <= 21 ? +m[1] : null;
+      }
+      async function addImg(id, f) {
+        const d = await shrink(f),
+          key = ik(id);
+        IMG[key] = d;
+        idbOp((s) => s.put(d, key));
+      }
+      function fillDeckSel() {
+        const o = DECKS.map(
+          (d) =>
+            `<option value="${esc(d.id)}">${esc(d.name)}</option>`,
+        ).join("");
+        ["#dsel", "#duse"].forEach((sel) => {
+          const el = $(sel);
+          if (!el) return;
+          const cur = el.value || deckId;
+          el.innerHTML = o;
+          el.value = DECKS.some((d) => d.id === cur) ? cur : deckId;
+        });
+        if ($("#dsel")) $("#dsel").value = deckId;
+        if ($("#duse")) $("#duse").value = deckId;
+      }
+      function setDeck(id) {
+        if (!DECKS.some((d) => d.id === id)) return;
+        editing = false;
+        tipHide();
+        deckId = id;
+        if (!CU[deckId]) CU[deckId] = {};
+        saveDecks();
+        fillDeckSel();
+        const db = $("#ddel");
+        if (db) {
+          db.dataset.s = "";
+          db.textContent = "刪除類別";
+        }
+        $("#deck-det").classList.add("hide");
+        $("#deck-det").innerHTML = "";
+        redraw();
+      }
+      fillDeckSel();
+      $("#dsel").onchange = () => setDeck($("#dsel").value);
+      $("#duse").onchange = () => setDeck($("#duse").value);
+      $("#dadd").onclick = () => {
+        const name = (prompt("新牌組名稱", "我的牌組") || "").trim();
+        if (!name) return;
+        const id = "d" + Date.now();
+        DECKS.push({ id, name });
+        CU[id] = {};
+        store.set("tarot-custom", CU);
+        saveDecks();
+        setDeck(id);
+      };
+      $("#dren").onclick = () => {
+        const d = DECKS.find((x) => x.id === deckId);
+        if (!d) return;
+        const name = (prompt("重新命名牌組", d.name) || "").trim();
+        if (!name || name === d.name) return;
+        d.name = name;
+        saveDecks();
+        fillDeckSel();
+        if (!$("#deck-det").classList.contains("hide")) show(...cur);
+      };
+      $("#ddel").onclick = function () {
+        if (DECKS.length <= 1) {
+          alert("至少保留一個牌組類別");
+          return;
+        }
+        if (!this.dataset.s) {
+          this.dataset.s = 1;
+          this.textContent = "再按一次確認刪除類別";
+          return;
+        }
+        this.dataset.s = "";
+        this.textContent = "刪除類別";
+        const gone = deckId;
+        Object.keys(IMG)
+          .filter((k) => k.startsWith(gone + ":"))
+          .forEach((k) => {
+            delete IMG[k];
+            idbOp((s) => s.delete(k));
+          });
+        delete CU[gone];
+        store.set("tarot-custom", CU);
+        DECKS = DECKS.filter((d) => d.id !== gone);
+        saveDecks();
+        setDeck(DECKS[0].id);
+      };
+      $("#fi").onchange = async (e) => {
+        for (const f of e.target.files) {
+          const id = idOf(f.name);
+          if (id == null) continue;
+          try {
+            await addImg(id, f);
+          } catch (x) {}
+        }
+        e.target.value = "";
+        redraw();
+      };
+      $("#f1").onchange = async (e) => {
+        const f = e.target.files[0];
+        if (f && imgTarget != null) {
+          try {
+            await addImg(imgTarget, f);
+          } catch (x) {}
+          redraw();
+          show(...cur);
+        }
+        e.target.value = "";
+      };
+      idbOp((s) => ({ k: s.getAllKeys(), v: s.getAll() })).then((r) => {
+        if (r && r.k.result) {
+          r.k.result.forEach((k, i) => {
+            const v = r.v.result[i];
+            if (typeof k === "number" || /^\d+$/.test(String(k))) {
+              const key = "rws:" + k;
+              IMG[key] = v;
+              idbOp((s) => {
+                s.delete(k);
+                s.put(v, key);
+              });
+            } else IMG[k] = v;
+          });
+          redraw();
+        }
+      });
+      /* ===== v3: 牌陣擺法、自訂牌陣、整組牌陣紀錄 ===== */
+      const LAY = {
+        one: [[0, 0]],
+        three: [
+          [0, 0],
+          [1, 0],
+          [2, 0],
+        ],
+        four: [
+          [0, 0],
+          [1, 0],
+          [0, 1],
+          [1, 1],
+        ],
+        choice: [
+          [1, 0],
+          [0, 1],
+          [0, 2],
+          [2, 1],
+          [2, 2],
+        ],
+        five: [
+          [1, 1],
+          [0, 1],
+          [1, 2],
+          [2, 1],
+          [1, 0],
+        ],
+        rel: [
+          [0, 0],
+          [2, 0],
+          [1, 1],
+          [0, 1],
+          [2, 1],
+          [1, 2],
+        ],
+        horse: [
+          [0, 0],
+          [0, 1],
+          [1, 2],
+          [2, 2],
+          [3, 2],
+          [4, 1],
+          [4, 0],
+        ],
+        celtic: [
+          [1, 1],
+          [1, 1, 1],
+          [1, 2],
+          [0, 1],
+          [1, 0],
+          [2, 1],
+          [3, 3],
+          [3, 2],
+          [3, 1],
+          [3, 0],
+        ],
+        year: [
+          [0, 0],
+          [1, 0],
+          [2, 0],
+          [3, 0],
+          [3, 1],
+          [3, 2],
+          [3, 3],
+          [2, 3],
+          [1, 3],
+          [0, 3],
+          [0, 2],
+          [0, 1],
+        ],
+      };
+      let CS = store.get("tarot-cs", {}),
+        curLay = null,
+        ce = { id: null, c: [] };
+      const SPS = () => ({ ...SP, ...CS }),
+        layOf = (k) => {
+          const s = SPS()[k];
+          return (s && (s[2] || LAY[k])) || null;
+        };
+      $("nav").insertAdjacentHTML(
+        "beforeend",
+        '<button id="t-sp">自訂牌陣</button><label class="mut" style="align-self:center"><input type="checkbox" id="lay" style="padding:0"> 依傳統擺法</label>',
+      );
+      $("#lay").checked = store.get("tarot-lay", true);
+      $("#addm").insertAdjacentHTML(
+        "beforebegin",
+        '<select id="msp"></select>',
+      );
+      $("#addm").textContent = "＋ 以此牌陣手動新增紀錄";
+      $("#v-deck").insertAdjacentHTML(
+        "afterend",
+        '<section id="v-sp" class="hide"><p class="mut">先輸入牌陣名稱，再依序點格子放置每個位置（點的順序即抽牌順序）；點已放置的格子可移除。</p><div class="row"><input type="text" id="cn" placeholder="牌陣名稱"><input type="text" id="cp" placeholder="下一個位置的名稱（可留空）"></div><div id="cg" class="cg"></div><div class="row" style="margin-top:10px"><button class="pri" id="cs">儲存牌陣</button><button id="cc">清空／新增</button><span class="mut" id="cmsg"></span></div><h3 style="color:var(--acc)">我的牌陣</h3><div id="cl"></div></section>',
+      );
+      function fillSp() {
+        const o = Object.entries(SPS())
+            .map(
+              ([k, v]) =>
+                `<option value="${k}">${esc(v[0])}（${v[1].length}張）</option>`,
+            )
+            .join(""),
+          a = $("#sp").value || "three",
+          b = $("#msp").value || "three";
+        $("#sp").innerHTML = o;
+        $("#msp").innerHTML = o;
+        $("#sp").value = SPS()[a] ? a : "three";
+        $("#msp").value = SPS()[b] ? b : "three";
+      }
+      fillSp();
+      function spreadHTML(P, lay, useLay, fn) {
+        const n = P.length;
+        if (!useLay || !lay || lay.length < n)
+          return `<div class="flow">${P.map((p, i) => `<div class="slot"><div class="lb">${esc(p)}</div>${fn(i)}</div>`).join("")}</div>`;
+        const W = Math.max(...lay.map((l) => l[0])) + 1,
+          H = Math.max(...lay.map((l) => l[1])) + 1;
+        return `<div class="lay" style="width:calc(${W}*(var(--cw,112px) + 14px));height:calc(${H}*(var(--ch,184px) + 40px))">${P.map(
+          (p, i) => {
+            const [x, y, r] = lay[i];
+            return `<div class="slot${r ? " rot" : ""}" style="left:calc(${x}*(var(--cw,112px) + 14px));top:calc(${y}*(var(--ch,184px) + 40px));width:var(--cw,112px)"><div class="lb">${esc(p)}</div>${fn(i)}</div>`;
+          },
+        ).join("")}</div>`;
+      }
+      function renderDraw() {
+        const n = drawn.length;
+        if (!n) return;
+        $("#slots").className = "slots" + (n >= 6 ? " sm" : "");
+        $("#slots").innerHTML = spreadHTML(
+          pos,
+          curLay,
+          $("#lay").checked,
+          (i) => {
+            const d = drawn[i];
+            return d.open
+              ? face(D[d.id], d.r, true)
+              : `<div class="card back" data-i="${i}">✦</div>`;
+          },
+        );
+        $("#slots")
+          .querySelectorAll(".card.back")
+          .forEach(
+            (el) =>
+              (el.onclick = () => {
+                const d = drawn[+el.dataset.i];
+                d.open = true;
+                renderDraw();
+                show(d.id, d.r);
+              }),
+          );
+        bindHover($("#slots"));
+        $("#acts").innerHTML =
+          `<span class="mut">${esc(spName)}</span><button id="all">全部翻開</button><button id="ai">✨ 統整解析</button><button class="pri" id="sv">儲存整個牌陣到紀錄</button>`;
+        $("#all").onclick = () => {
+          drawn.forEach((d) => (d.open = true));
+          renderDraw();
+        };
+        $("#sv").onclick = () => {
+          hist.unshift({
+            id: Date.now(),
+            t: new Date().toLocaleString("zh-TW"),
+            q: $("#q").value,
+            note: "",
+            spread: spName,
+            lay: curLay,
+            ai: drawAI,
+            deck: deckId,
+            cards: drawn.map((d, i) => ({ i: d.id, r: d.r, p: pos[i] })),
+          });
+          save();
+          drawn = [];
+          $("#slots").innerHTML =
+            '<span class="mut">已儲存整個牌陣！可到「我的紀錄」補寫筆記。</span>';
+          $("#acts").innerHTML = "";
+          tab("hist");
+        };
+      }
+      $("#go").onclick = () => {
+        const a = [...Array(78).keys()];
+        for (let i = 77; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        const k = $("#sp").value,
+          s = SPS()[k];
+        spName = s[0];
+        pos = s[1];
+        curLay = layOf(k);
+        drawAI = "";
+        $("#aibox").classList.add("hide");
+        drawn = a
+          .slice(0, pos.length)
+          .map((id) => ({
+            id,
+            r: $("#rv").checked && Math.random() < 0.5,
+            open: false,
+          }));
+        renderDraw();
+      };
+      const hsHTML = (h) =>
+        spreadHTML(
+          h.cards.map((c, k) => c.p || "第" + (k + 1) + "張"),
+          h.lay,
+          $("#lay").checked,
+          (i) => {
+            const c = h.cards[i];
+            return c.i == null
+              ? '<div class="card back empty"></div>'
+              : face(D[c.i], c.r, true, h.deck || deckId);
+          },
+        );
+      function renderList() {
+        const L = $("#list");
+        if (!hist.length) {
+          L.innerHTML = '<p class="mut">還沒有紀錄。</p>';
+          return;
+        }
+        L.innerHTML = hist
+          .map(
+            (
+              h,
+            ) => `<div class="entry" data-h="${h.id}"><div class="mut">${h.t}・${esc((h.spread || "自由").split("：")[0])}（${h.cards.length} 張）${h.deck ? "・" + esc(deckName(h.deck)) : ""}</div>
+ <input type="text" class="hq" style="width:100%;margin-top:6px" placeholder="問題" value="${esc(h.q)}">
+ <div class="hs">${hsHTML(h)}</div>
+ <details><summary class="mut" style="cursor:pointer">編輯牌面（逐個位置選牌）</summary>${h.cards.map((c, k) => `<div class="row" style="margin:6px 0 0"><span style="min-width:90px">${esc(c.p || "第" + (k + 1) + "張")}</span><select class="pc" data-k="${k}"><option value="">（未選）</option>${D.map((d) => `<option value="${d.id}"${d.id === c.i ? " selected" : ""}>${d.z}</option>`).join("")}</select><label class="mut"><input type="checkbox" class="pr" data-k="${k}" style="padding:0"${c.r ? " checked" : ""}> 逆位</label></div>`).join("")}</details>
+ <textarea class="hn" placeholder="我的塔羅筆記…">${esc(h.note)}</textarea>
+ <div class="row" style="margin:6px 0 0"><button class="del">刪除此紀錄</button></div></div>`,
+          )
+          .join("");
+        bindHover(L);
+        L.querySelectorAll(".entry").forEach((el) => {
+          const h = hist.find((x) => x.id == el.dataset.h),
+            rf = () => {
+              const s = el.querySelector(".hs");
+              s.innerHTML = hsHTML(h);
+              bindHover(s);
+            };
+          el.querySelector(".hq").oninput = (e) => {
+            h.q = e.target.value;
+            save();
+          };
+          el.querySelector(".hn").oninput = (e) => {
+            h.note = e.target.value;
+            save();
+          };
+          el.querySelectorAll(".pc").forEach(
+            (s) =>
+              (s.onchange = () => {
+                h.cards[+s.dataset.k].i = s.value === "" ? null : +s.value;
+                save();
+                rf();
+              }),
+          );
+          el.querySelectorAll(".pr").forEach(
+            (s) =>
+              (s.onchange = () => {
+                h.cards[+s.dataset.k].r = s.checked;
+                save();
+                rf();
+              }),
+          );
+          const b = el.querySelector(".del");
+          b.onclick = () => {
+            if (b.dataset.s) {
+              hist = hist.filter((x) => x !== h);
+              save();
+              renderList();
+            } else {
+              b.dataset.s = 1;
+              b.textContent = "再按一次確認刪除";
+            }
+          };
+        });
+      }
+      $("#addm").onclick = () => {
+        const k = $("#msp").value,
+          s = SPS()[k];
+        hist.unshift({
+          id: Date.now(),
+          t: new Date().toLocaleString("zh-TW"),
+          q: "",
+          note: "",
+          spread: s[0],
+          lay: layOf(k),
+          deck: deckId,
+          cards: s[1].map((p) => ({ i: null, r: false, p })),
+        });
+        save();
+        renderList();
+        const d = document.querySelector("#list details");
+        if (d) d.open = true;
+      };
+      $("#lay").onchange = () => {
+        store.set("tarot-lay", $("#lay").checked);
+        renderDraw();
+        if (!$("#v-hist").classList.contains("hide")) renderList();
+      };
+      function renderCG() {
+        let h = "";
+        for (let y = 0; y < 5; y++)
+          for (let x = 0; x < 7; x++) {
+            const i = ce.c.findIndex((c) => c.x == x && c.y == y);
+            h += `<button data-x="${x}" data-y="${y}" class="${i >= 0 ? "on" : ""}" title="${i >= 0 ? esc(ce.c[i].p) : ""}">${i >= 0 ? i + 1 + "<br>" + esc(ce.c[i].p.slice(0, 3)) : ""}</button>`;
+          }
+        $("#cg").innerHTML = h;
+        $("#cg")
+          .querySelectorAll("button")
+          .forEach(
+            (b) =>
+              (b.onclick = () => {
+                const x = +b.dataset.x,
+                  y = +b.dataset.y,
+                  i = ce.c.findIndex((c) => c.x == x && c.y == y);
+                if (i >= 0) ce.c.splice(i, 1);
+                else {
+                  ce.c.push({
+                    x,
+                    y,
+                    p: $("#cp").value.trim() || "位置" + (ce.c.length + 1),
+                  });
+                  $("#cp").value = "";
+                }
+                renderCG();
+              }),
+          );
+      }
+      function renderCL() {
+        const L = $("#cl"),
+          k = Object.keys(CS);
+        L.innerHTML = k.length
+          ? k
+              .map(
+                (id) =>
+                  `<div class="row"><b>${esc(CS[id][0])}</b><span class="mut">${CS[id][1].length} 張</span><button data-e="${id}">編輯</button><button data-d="${id}">刪除</button></div>`,
+              )
+              .join("")
+          : '<p class="mut">尚無自訂牌陣。</p>';
+        L.querySelectorAll("[data-e]").forEach(
+          (b) =>
+            (b.onclick = () => {
+              const s = CS[b.dataset.e];
+              ce = {
+                id: b.dataset.e,
+                c: s[1].map((p, i) => ({ x: s[2][i][0], y: s[2][i][1], p })),
+              };
+              $("#cn").value = s[0];
+              renderCG();
+            }),
+        );
+        L.querySelectorAll("[data-d]").forEach(
+          (b) =>
+            (b.onclick = () => {
+              if (b.dataset.s) {
+                delete CS[b.dataset.d];
+                store.set("tarot-cs", CS);
+                renderCL();
+                fillSp();
+              } else {
+                b.dataset.s = 1;
+                b.textContent = "再按一次確認";
+              }
+            }),
+        );
+      }
+      $("#cs").onclick = () => {
+        if (!ce.c.length) {
+          $("#cmsg").textContent = "請至少放置一個位置";
+          return;
+        }
+        const mx = Math.min(...ce.c.map((c) => c.x)),
+          my = Math.min(...ce.c.map((c) => c.y));
+        CS[ce.id || "c" + Date.now()] = [
+          $("#cn").value.trim() || "我的牌陣",
+          ce.c.map((c) => c.p),
+          ce.c.map((c) => [c.x - mx, c.y - my]),
+        ];
+        store.set("tarot-cs", CS);
+        ce = { id: null, c: [] };
+        $("#cn").value = "";
+        $("#cmsg").textContent = "已儲存，可在抽牌頁選用";
+        renderCG();
+        renderCL();
+        fillSp();
+      };
+      $("#cc").onclick = () => {
+        ce = { id: null, c: [] };
+        $("#cn").value = "";
+        $("#cmsg").textContent = "";
+        renderCG();
+      };
+      function tab(t) {
+        tipHide();
+        ["draw", "hist", "deck", "sp"].forEach((k) => {
+          $("#v-" + k).classList.toggle("hide", k != t);
+          $("#t-" + k).classList.toggle("on", k == t);
+        });
+        if (t == "hist") renderList();
+        if (t == "sp") {
+          renderCG();
+          renderCL();
+        }
+      }
+      $("#t-sp").onclick = () => tab("sp");
+      /* ===== v4: 統整解析 ===== */
+      let SM = null,
+        drawAI = "";
+      (async () => {
+        try {
+          if (window.claude && claude.use) SM = await claude.use("sample");
+        } catch (e) {}
+      })();
+      const st = document.createElement("style");
+      st.textContent =
+        ".ai{white-space:pre-wrap;line-height:1.85}.aibx,#aibox{margin:10px 0}";
+      document.head.appendChild(st);
+      $("#acts").insertAdjacentHTML(
+        "afterend",
+        '<div class="detail hide" id="aibox"></div>',
+      );
+      const cardsOf = (a) =>
+          a
+            .filter((c) => c.i != null)
+            .map((c) => ({ d: D[c.i], r: c.r, p: c.p || "" })),
+        ELE = { 權杖: "火", 聖杯: "水", 寶劍: "風", 錢幣: "土" };
+      function stat(cs) {
+        const n = cs.length,
+          maj = cs.filter((x) => x.d.id < 22).length,
+          rv = cs.filter((x) => x.r).length,
+          su = {},
+          nm = {};
+        cs.forEach((x) => {
+          if (x.d.id >= 22) {
+            const s = SU[Math.floor((x.d.id - 22) / 14)][0],
+              r = (x.d.id - 22) % 14;
+            su[s] = (su[s] || 0) + 1;
+            (nm[r] = nm[r] || []).push(x.d.z);
+          }
+        });
+        const sp =
+            Object.entries(su)
+              .map(([k, v]) => `${k}（${ELE[k]}）×${v}`)
+              .join("、") || "無",
+          rep = Object.values(nm)
+            .filter((a) => a.length > 1)
+            .map((a) => a.join("、"));
+        return [
+          `共 ${n} 張：大阿爾卡那 ${maj}、小阿爾卡那 ${n - maj}（${maj * 2 >= n ? "大牌偏多，帶有較強的命運或人生課題色彩" : "小牌為主，偏向日常層面的具體處境"}）`,
+          `正位 ${n - rv}、逆位 ${rv}（${rv * 2 > n ? "逆位偏多，能量多為內化、受阻或需要調整" : "正位為主，能量較為順暢外顯"}）`,
+          `花色／元素：${sp}`,
+          rep.length ? `重複的數字或宮廷牌：${rep.join("；")}` : null,
+        ].filter(Boolean);
+      }
+      const pm = (x, did) => {
+        const bag = CU[did || deckId] || {},
+          u = bag[x.d.id];
+        return u && (u.u || u.r || u.n)
+          ? `；我的牌義：${x.r ? u.r || u.u || "" : u.u || u.r || ""}${u.n ? "；心得：" + u.n : ""}`
+          : "";
+      };
+      const view = (cs, t) =>
+        `<p><b>牌陣統計</b></p><ul>${stat(cs)
+          .map((s) => `<li>${esc(s)}</li>`)
+          .join(
+            "",
+          )}</ul>${t ? `<p><b>✨ 統整解析</b></p><div class="ai">${esc(t)}</div>` : ""}`;
+      function promptOf(h, cs) {
+        const did = h.deck || deckId;
+        return `你是經驗豐富的偉特塔羅解讀者。請用繁體中文，針對以下一次抽牌做「整體統整解析」。\n牌組：${deckName(did)}\n牌陣：${h.spread}\n問題：${h.q || "（未提供，請做一般性解讀）"}\n\n各位置的牌與牌義：\n${cs.map((x) => `- ${x.p}：${x.d.z}（${x.r ? "逆位" : "正位"}）；通用牌義：${x.r ? x.d.r : x.d.u}${pm(x, did)}`).join("\n")}\n\n統計觀察：\n${stat(cs).join("\n")}\n\n請依序輸出（使用簡短標題，不要使用 # 或 ** 等 markdown 符號）：\n一、整體主題（2-3 句，說明這次牌陣的核心訊息）\n二、逐位置串連解讀（依牌陣位置，說明每張牌在該位置的意義，並與前後位置互相呼應，不要只是重複牌義）\n三、牌與牌之間的互動（大小牌、元素、正逆位、重複數字帶來的線索，以及張力或矛盾處）\n四、建議與可行動方向（3 點以內，具體）\n若有「我的牌義」，請優先參考使用者的個人詮釋。語氣溫和，把結果當作反思參考，不做絕對預言。`;
+      }
+      async function analyze(h, box, after) {
+        const cs = cardsOf(h.cards);
+        box.classList.remove("hide");
+        if (!cs.length) {
+          box.innerHTML = '<p class="mut">尚未選牌。</p>';
+          return;
+        }
+        if (!SM) {
+          box.innerHTML =
+            view(cs) +
+            "<p><b>逐位置牌義彙整</b></p>" +
+            cs
+              .map(
+                (x) =>
+                  `<p><b>${esc(x.p)}</b>｜${x.d.z}（${x.r ? "逆位" : "正位"}）：${x.r ? x.d.r : x.d.u}${esc(pm(x, h.deck))}</p>`,
+              )
+              .join("") +
+            '<p class="mut">目前環境無法使用 AI 串連解析，以上為本機彙整。</p>';
+          return;
+        }
+        box.innerHTML = view(cs) + '<p class="mut">AI 解析中…</p>';
+        try {
+          const r = await SM(promptOf(h, cs), {
+            cache: false,
+            onText: ({ text }) => {
+              box.innerHTML = view(cs, text);
+            },
+          });
+          h.ai = r.text;
+          box.innerHTML = view(cs, r.text);
+          after && after();
+        } catch (e) {
+          box.innerHTML =
+            view(cs) +
+            '<p class="mut">AI 解析失敗（' +
+            esc(e.code || e.message || "error") +
+            "），可稍後再試。</p>";
+        }
+      }
+      document.addEventListener("click", (e) => {
+        if (e.target.id != "ai" || !drawn.length) return;
+        drawn.forEach((d) => (d.open = true));
+        renderDraw();
+        const h = {
+          spread: spName,
+          q: $("#q").value,
+          deck: deckId,
+          cards: drawn.map((d, i) => ({ i: d.id, r: d.r, p: pos[i] })),
+        };
+        analyze(h, $("#aibox"), () => {
+          drawAI = h.ai;
+        });
+      });
+      const rl0 = renderList;
+      renderList = function () {
+        rl0();
+        document.querySelectorAll("#list .entry").forEach((el) => {
+          const h = hist.find((x) => x.id == el.dataset.h),
+            row = el.querySelector(".del").parentNode;
+          row.insertAdjacentHTML(
+            "afterbegin",
+            `<button class="aib">✨ ${h.ai ? "重新" : ""}統整解析</button>`,
+          );
+          row.insertAdjacentHTML(
+            "afterend",
+            `<div class="detail aibx${h.ai ? "" : " hide"}">${h.ai ? view(cardsOf(h.cards), h.ai) : ""}</div>`,
+          );
+          el.querySelector(".aib").onclick = () =>
+            analyze(h, el.querySelector(".aibx"), save);
+        });
+      };
+      /* ===== v5: 花色圖示、雲端同步 ===== */
+      SU[2][2] = "💨";
+      SU[3][2] = "🪨";
+      D.forEach((c) => {
+        if (c.id >= 22) c.sym = SU[Math.floor((c.id - 22) / 14)][2];
+      });
+      redraw();
+      $("nav").insertAdjacentHTML(
+        "beforeend",
+        '<span class="mut" id="sync" style="align-self:center">本機儲存</span><button id="syncb" class="hide">立即同步</button>',
+      );
+      const sset = store.set.bind(store),
+        say = (m) => ($("#sync").textContent = m),
+        tnow = () => "☁️ 已同步 " + new Date().toLocaleTimeString("zh-TW"),
+        jstr = (h) => JSON.stringify({ ...h, u: 0 });
+      let col = null,
+        lastS = {},
+        tm = {},
+        cfgU = store.get("tarot-cfgu", 0);
+      async function pushHist() {
+        if (!col) return;
+        try {
+          const seen = new Set();
+          for (const h of hist) {
+            seen.add(String(h.id));
+            const c = jstr(h);
+            if (lastS[h.id] !== c) {
+              h.u = Date.now();
+              await col.doc("h" + h.id).set({ j: JSON.stringify(h) });
+              lastS[h.id] = c;
+            }
+          }
+          for (const id of Object.keys(lastS))
+            if (!seen.has(id)) {
+              await col.doc("h" + id).delete();
+              delete lastS[id];
+            }
+          sset("tarot-hist", hist);
+          sset("tarot-known", Object.keys(lastS));
+          say(tnow());
+        } catch (e) {
+          say("同步失敗：" + (e.code || e.message || "error"));
+        }
+      }
+      async function pushCfg() {
+        if (!col) return;
+        try {
+          await col.doc("cfg").set({
+            cu: JSON.stringify(CU),
+            cs: JSON.stringify(CS),
+            decks: JSON.stringify(DECKS),
+            deckId,
+            u: cfgU,
+          });
+          say(tnow());
+        } catch (e) {
+          say("同步失敗：" + (e.code || e.message || "error"));
+        }
+      }
+      const later = (k, f) => {
+        clearTimeout(tm[k]);
+        tm[k] = setTimeout(f, 1200);
+      };
+      store.set = (k, v) => {
+        sset(k, v);
+        if (k == "tarot-hist") later("h", pushHist);
+        else if (
+          k == "tarot-custom" ||
+          k == "tarot-cs" ||
+          k == "tarot-decks" ||
+          k == "tarot-deck-id"
+        ) {
+          cfgU = Date.now();
+          sset("tarot-cfgu", cfgU);
+          later("c", pushCfg);
+        }
+      };
+      async function syncAll() {
+        if (!col) return;
+        say("同步中…");
+        try {
+          const snap = await col.get(),
+            cloud = {};
+          let cfg = null;
+          snap.docs.forEach((d) => {
+            const x = d.data();
+            if (!x) return;
+            if (d.id == "cfg") cfg = x;
+            else if (x.j && /^h\d+$/.test(d.id)) {
+              try {
+                const h = JSON.parse(x.j);
+                if (h && h.id && Array.isArray(h.cards)) cloud[h.id] = h;
+              } catch (e) {}
+            }
+          });
+          hist = hist.filter((h) => h && h.id && Array.isArray(h.cards));
+          const known = store.get("tarot-known", []).map(String),
+            out = [];
+          new Set([
+            ...Object.keys(cloud),
+            ...hist.map((h) => String(h.id)),
+          ]).forEach((id) => {
+            const c = cloud[id],
+              l = hist.find((x) => String(x.id) == id);
+            if (c && l) out.push((l.u || 0) > (c.u || 0) ? l : c);
+            else if (c) out.push(c);
+            else if (!known.includes(id)) out.push(l);
+          });
+          out.sort((a, b) => b.id - a.id);
+          hist = out;
+          lastS = {};
+          Object.entries(cloud).forEach(([id, c]) => (lastS[id] = jstr(c)));
+          if (cfg && (cfg.u || 0) > cfgU) {
+            try {
+              const raw = JSON.parse(cfg.cu);
+              const keys = Object.keys(raw || {});
+              CU =
+                keys.length && keys.every((k) => /^\d+$/.test(k))
+                  ? { rws: raw }
+                  : raw || {};
+              CS = JSON.parse(cfg.cs);
+              if (cfg.decks) {
+                try {
+                  const ds = JSON.parse(cfg.decks);
+                  if (Array.isArray(ds) && ds.length) DECKS = ds;
+                } catch (e) {}
+              }
+              if (cfg.deckId && DECKS.some((d) => d.id === cfg.deckId))
+                deckId = cfg.deckId;
+              else if (!DECKS.some((d) => d.id === deckId))
+                deckId = DECKS[0].id;
+              if (!CU[deckId]) CU[deckId] = {};
+              cfgU = cfg.u;
+              sset("tarot-custom", CU);
+              sset("tarot-cs", CS);
+              sset("tarot-decks", DECKS);
+              sset("tarot-deck-id", deckId);
+              sset("tarot-cfgu", cfgU);
+            } catch (e) {}
+          } else if (!cfg || cfgU > (cfg.u || 0)) await pushCfg();
+          await pushHist();
+          fillSp();
+          fillDeckSel();
+          redraw();
+        } catch (e) {
+          say("同步失敗：" + (e.code || e.message || "error"));
+        }
+      }
+      hist = hist.filter((h) => h && h.id && Array.isArray(h.cards));
+      sset("tarot-hist", hist);
+      (async () => {
+        try {
+          if (!(window.claude && claude.use)) return;
+          const db = await claude.use("db"),
+            us = await claude.use("user"),
+            id = us && (await us.id());
+          if (db && id) {
+            col = db.collection("data/users/" + id);
+            $("#syncb").classList.remove("hide");
+            $("#syncb").onclick = syncAll;
+            if (!cfgU && (Object.keys(CU).length || Object.keys(CS).length)) {
+              cfgU = Date.now();
+              sset("tarot-cfgu", cfgU);
+            }
+            await syncAll();
+          } else say("僅儲存在此裝置（未登入 Claude 或無雲端權限）");
+        } catch (e) {
+          say("僅儲存在此裝置");
+        }
+      })();
+      const rl1 = renderList;
+      renderList = function () {
+        rl1();
+        document.querySelectorAll("#list .entry").forEach((el) => {
+          const h = hist.find((x) => String(x.id) == el.dataset.h),
+            d = el.querySelector(".del");
+          if (!d) return;
+          const n = d.cloneNode(true);
+          d.replaceWith(n);
+          n.textContent = "\u{1F5D1} \u522a\u9664\u6b64\u7d00\u9304";
+          n.onclick = () => {
+            const row = n.parentNode;
+            row.innerHTML =
+              '<span>\u78ba\u5b9a\u8981\u522a\u9664\u9019\u7b46\u7d00\u9304\u55ce\uff1f\u522a\u9664\u5f8c\u7121\u6cd5\u5fa9\u539f\u3002</span><button class="pri yes">\u78ba\u5b9a\u522a\u9664</button><button class="no">\u53d6\u6d88</button>';
+            row.querySelector(".yes").onclick = () => {
+              hist = hist.filter((x) => x !== h);
+              save();
+              renderList();
+            };
+            row.querySelector(".no").onclick = () => renderList();
+          };
+        });
+      };
+      const rl2 = renderList;
+      renderList = function () {
+        rl2();
+        document.querySelectorAll("#list .entry").forEach((el) => {
+          const h = hist.find((x) => String(x.id) == el.dataset.h);
+          el.insertAdjacentHTML(
+            "afterbegin",
+            '<div class="row top" style="margin:0 0 4px;justify-content:flex-end"><button class="del2">\u{1F5D1} \u522a\u9664\u9019\u7b46</button></div>',
+          );
+          const row = el.querySelector(".top"),
+            orig = row.innerHTML;
+          const ask = () => {
+            row.innerHTML =
+              '<span>\u78ba\u5b9a\u8981\u522a\u9664\u9019\u7b46\u7d00\u9304\u55ce\uff1f\u7121\u6cd5\u5fa9\u539f\u3002</span><button class="pri yes">\u78ba\u5b9a\u522a\u9664</button><button class="no">\u53d6\u6d88</button>';
+            row.querySelector(".yes").onclick = () => {
+              hist = hist.filter((x) => x !== h);
+              save();
+              renderList();
+            };
+            row.querySelector(".no").onclick = () => {
+              row.innerHTML = orig;
+              row.querySelector(".del2").onclick = ask;
+            };
+          };
+          row.querySelector(".del2").onclick = ask;
+        });
+      };
+      renderList();
+    </script>
+  </body>
+</html>
