@@ -66,6 +66,7 @@
             );
         } catch (e) {}
       }
+      let imgQuietUntil = 0;
       async function pushImgCloud(key, dataUrl) {
         if (!fbUser || !fbSt) {
           console.warn("尚未登入雲端，牌面只存在本機", key);
@@ -77,6 +78,8 @@
         await ref.putString(dataUrl, "data_url", {
           contentType: "image/jpeg",
         });
+        // 自家上傳後短時間忽略即時拉取，避免重繪閃爍
+        imgQuietUntil = Date.now() + 5000;
         await noteImgCloud(key, true);
       }
       async function deleteImgCloud(key) {
@@ -453,6 +456,7 @@
             liveTimer = null;
           async function refreshImgsLive() {
             if (!fbUser || !fbSt || syncing) return;
+            if (Date.now() < imgQuietUntil) return;
             const changed = await pullImages();
             if (!changed) return;
             redraw();

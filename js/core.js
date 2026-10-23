@@ -530,65 +530,133 @@ const MA =
         if (drawn.length) renderDraw();
         if (!$("#v-hist").classList.contains("hide")) renderList();
       }
-      /** 只更新某一張牌的縮圖／詳情，避免整頁 redraw 造成閃爍 */
-      function patchCardFaces(id) {
-        if (id == null || !D[id]) return;
-        document.querySelectorAll(`.card[data-id="${id}"]`).forEach((el) => {
-          const root = el.closest("#slots, #list, #deck") || el.parentNode;
-          const rev = el.dataset.rev == "1";
-          const tag = !!el.querySelector(".tag");
-          const inHist = !!(root && root.id === "list");
-          const did = inHist
-            ? (
-                hist.find(
-                  (h) =>
-                    h &&
-                    String(h.id) ===
-                      String(el.closest(".entry")?.dataset?.h),
-                ) || {}
-              ).deck
-            : deckId;
-          const tmp = document.createElement("div");
-          tmp.innerHTML = face(D[id], rev, tag, did || deckId);
-          const neu = tmp.firstElementChild;
-          if (!neu) return;
-          el.replaceWith(neu);
+      function preloadSrc(src) {
+        return new Promise((ok, no) => {
+          if (!src) return no();
+          const i = new Image();
+          i.onload = () => ok(i);
+          i.onerror = no;
+          i.src = src;
         });
-        if ($("#deck")) {
-          bindDeck();
-          bindBrokenImgs($("#deck"));
-        }
-        if ($("#slots")) {
-          bindHover($("#slots"));
-          bindBrokenImgs($("#slots"));
-        }
-        if ($("#list")) {
-          bindHover($("#list"));
-          bindBrokenImgs($("#list"));
-        }
       }
-      function softRefreshView(id, rev) {
+      async function swapImgSrc(img, src) {
+        if (!img || !src) return;
+        if (img.getAttribute("src") === src) return;
+        await preloadSrc(src);
+        img.src = src;
+        if (img.decode)
+          try {
+            await img.decode();
+          } catch (e) {}
+      }
+      /** 就地換／插入牌面圖，不 replace 整張卡 DOM */
+      async function paintCardImg(el, src) {
+        if (!el || !src) return;
+        el.classList.add("im");
+        let img = el.querySelector("img");
+        if (!img) {
+          img = document.createElement("img");
+          img.alt = "";
+          const sym = el.querySelector(".sym");
+          if (sym) sym.replaceWith(img);
+          else {
+            const z = el.querySelector(".z");
+            if (z) el.insertBefore(img, z);
+            else el.appendChild(img);
+          }
+        }
+        await swapImgSrc(img, src);
+        img.onerror = () => {
+          const card = img.closest(".card");
+          if (!card) return;
+          const id = +card.dataset.id;
+          const key = ik(id);
+          delete IMG[key];
+          idbOp((s) => s.delete(key));
+          card.classList.remove("im");
+          img.replaceWith(
+            Object.assign(document.createElement("span"), {
+              className: "sym",
+              textContent: (D[id] && D[id].sym) || "✦",
+            }),
+          );
+        };
+      }
+      function clearCardImg(el) {
+        if (!el) return;
+        const img = el.querySelector("img");
+        const id = +el.dataset.id;
+        el.classList.remove("im");
+        if (img)
+          img.replaceWith(
+            Object.assign(document.createElement("span"), {
+              className: "sym",
+              textContent: (D[id] && D[id].sym) || "✦",
+            }),
+          );
+      }
+      async function softRefreshView(id, rev) {
         if (id == null || id === undefined || editing) return;
-        patchCardFaces(id);
+        const im = getImg(id);
+        if (im) {
+          try {
+            await preloadSrc(im);
+          } catch (e) {}
+        }
+        // 縮圖：只動 img，不整卡重繪
+        document.querySelectorAll(`.card[data-id="${id}"]`).forEach((el) => {
+          if (im) paintCardImg(el, im);
+          else clearCardImg(el);
+        });
         const box = detBox();
         const open =
           box &&
           !box.classList.contains("hide") &&
           !box.hidden &&
-          box.style.display !== "none";
+          box.style.display !== "none" &&
+          cur[0] === id;
         if (!open) return;
-        const im = getImg(id);
-        const img = box.querySelector(".det img");
-        const hasCd = !!box.querySelector("#cd");
-        // 已有圖：只換 src，不要整塊重繪（重繪 img 會閃）
-        if (im && img && hasCd && cur[0] === id) {
-          if (img.getAttribute("src") !== im) img.src = im;
-          img.classList.toggle("rev", rev === true);
-          const ci = box.querySelector("#ci");
-          if (ci) ci.textContent = "更換牌面圖";
+        if (!im) {
+          show(id, rev);
           return;
         }
-        show(id, rev);
+        const det = box.querySelector(".det");
+        if (!det) {
+          show(id, rev);
+          return;
+        }
+        let img = det.querySelector("img");
+        if (!img) {
+          img = document.createElement("img");
+          img.alt = "";
+          det.insertBefore(img, det.firstChild);
+        }
+        img.classList.toggle("rev", rev === true);
+        await swapImgSrc(img, im);
+        const ci = box.querySelector("#ci");
+        if (ci) ci.textContent = "更換牌面圖";
+        if (!box.querySelector("#cd")) {
+          const row = box.querySelector(".dbody .row");
+          if (!row) {
+            show(id, rev);
+            return;
+          }
+          const cd = document.createElement("button");
+          cd.id = "cd";
+          cd.textContent = "刪除卡面";
+          cd.onclick = async function () {
+            if (this.dataset.s) {
+              try {
+                await remImg(id);
+              } catch (e) {}
+              softRefreshView(id, rev);
+            } else {
+              this.dataset.s = 1;
+              this.textContent = "再按一次確認刪除";
+            }
+          };
+          row.appendChild(cd);
+        }
       }
       function refreshView(id, rev) {
         redraw();
