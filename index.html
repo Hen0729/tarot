@@ -1762,28 +1762,47 @@
             say("牌組圖刪除失敗：" + fbErr(e));
         }
       }
+      function withTimeout(promise, ms, label) {
+        return Promise.race([
+          promise,
+          new Promise((_, no) =>
+            setTimeout(
+              () => no(new Error(label + "逾時（請確認已建立 Firestore／Storage）")),
+              ms,
+            ),
+          ),
+        ]);
+      }
       async function pullImages() {
         if (!fbUser || !fbSt) return;
-        const root = await fbSt.ref(`users/${fbUser.uid}`).listAll();
-        for (const pref of root.prefixes) {
-          const did = pref.name;
-          const files = await pref.listAll();
-          for (const item of files.items) {
-            const cid = item.name.replace(/\.jpe?g$/i, "");
-            const key = did + ":" + cid;
-            try {
-              const url = await item.getDownloadURL();
-              const blob = await (await fetch(url)).blob();
-              const dataUrl = await new Promise((ok, no) => {
-                const r = new FileReader();
-                r.onload = () => ok(r.result);
-                r.onerror = no;
-                r.readAsDataURL(blob);
-              });
-              IMG[key] = dataUrl;
-              idbOp((s) => s.put(dataUrl, key));
-            } catch (e) {}
+        try {
+          const root = await withTimeout(
+            fbSt.ref(`users/${fbUser.uid}`).listAll(),
+            15000,
+            "圖片列表",
+          );
+          for (const pref of root.prefixes) {
+            const did = pref.name;
+            const files = await pref.listAll();
+            for (const item of files.items) {
+              const cid = item.name.replace(/\.jpe?g$/i, "");
+              const key = did + ":" + cid;
+              try {
+                const url = await item.getDownloadURL();
+                const blob = await (await fetch(url)).blob();
+                const dataUrl = await new Promise((ok, no) => {
+                  const r = new FileReader();
+                  r.onload = () => ok(r.result);
+                  r.onerror = no;
+                  r.readAsDataURL(blob);
+                });
+                IMG[key] = dataUrl;
+                idbOp((s) => s.put(dataUrl, key));
+              } catch (e) {}
+            }
           }
+        } catch (e) {
+          say("圖片同步略過：" + fbErr(e));
         }
       }
       function userCol() {
@@ -1856,11 +1875,16 @@
       async function syncAll() {
         const root = userCol();
         if (!root) return;
-        say("同步中…");
+        if (syncing) return;
+        say("同步紀錄中…");
         syncing = true;
         try {
           const cloud = {};
-          const snap = await root.collection("hist").get();
+          const snap = await withTimeout(
+            root.collection("hist").get(),
+            20000,
+            "Firestore",
+          );
           snap.forEach((d) => {
             const x = d.data();
             if (!x || !x.j) return;
@@ -1888,7 +1912,11 @@
           Object.entries(cloud).forEach(([id, c]) => (lastS[id] = jstr(c)));
           let cfg = null;
           try {
-            const cfgSnap = await root.collection("meta").doc("cfg").get();
+            const cfgSnap = await withTimeout(
+              root.collection("meta").doc("cfg").get(),
+              15000,
+              "設定",
+            );
             if (cfgSnap.exists) cfg = cfgSnap.data();
           } catch (e) {}
           if (cfg && (cfg.u || 0) > cfgU) {
@@ -1919,12 +1947,15 @@
               sset("tarot-cfgu", cfgU);
             } catch (e) {}
           } else if (!cfg || cfgU > (cfg.u || 0)) {
+            say("上傳設定中…");
             syncing = false;
             await pushCfg();
             syncing = true;
           }
+          say("上傳紀錄中…");
           syncing = false;
           await pushHist();
+          syncing = true;
           say("同步圖片中…");
           await pullImages();
           fillSp();
@@ -1953,11 +1984,14 @@
           if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
           fbAuth = firebase.auth();
           fbDb = firebase.firestore();
+          try {
+            fbDb.settings({ ignoreUndefinedProperties: true });
+          } catch (e) {}
           fbSt = firebase.storage();
           fbAuth.onAuthStateChanged(async (u) => {
             fbUser = u;
             if (u) {
-              say("雲端同步中…");
+              say("已登入，開始同步…");
               if (
                 !cfgU &&
                 (Object.keys(CU).length || Object.keys(CS).length)
