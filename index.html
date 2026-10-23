@@ -616,9 +616,11 @@
           $("#f1").click();
         };
         if ($("#cd"))
-          $("#cd").onclick = function () {
+          $("#cd").onclick = async function () {
             if (this.dataset.s) {
-              remImg(id);
+              try {
+                await remImg(id);
+              } catch (e) {}
               refreshView(id, rev);
             } else {
               this.dataset.s = 1;
@@ -995,14 +997,13 @@
           key = ik(id);
         IMG[key] = d;
         idbOp((s) => s.put(d, key));
-        // 雲端背景上傳，不擋本機畫面更新
-        pushImgCloud(key, d);
+        return { key, dataUrl: d };
       }
       async function remImg(id) {
         const key = ik(id);
         delete IMG[key];
         idbOp((s) => s.delete(key));
-        deleteImgCloud(key);
+        await deleteImgCloud(key);
       }
       async function remDeckImgs(did) {
         Object.keys(IMG)
@@ -1106,19 +1107,21 @@
           rev = cur[0] === id ? cur[1] : undefined;
         e.target.value = "";
         if (!f || id == null) return;
-        say("處理圖片中…");
+        let packed;
         try {
-          await addImg(id, f);
+          packed = await addImg(id, f);
         } catch (x) {
-          say("圖片處理失敗");
           return;
         }
+        // 先更新本機畫面
         refreshView(id, rev);
-        // 部分手機瀏覽器要再排一次才會重繪
         requestAnimationFrame(() => refreshView(id, rev));
-        setTimeout(() => refreshView(id, rev), 30);
-        if (fbUser) say(tnow());
-        else say("本機已更新");
+        // 再等雲端傳完，換裝置才看得到
+        if (packed) {
+          try {
+            await pushImgCloud(packed.key, packed.dataUrl);
+          } catch (x) {}
+        }
       };
       idbOp((s) => ({ k: s.getAllKeys(), v: s.getAll() })).then((r) => {
         if (r && r.k.result) {
@@ -1728,18 +1731,26 @@
           cid: key.slice(i + 1),
         };
       }
+      async function noteImgCloud(key, present) {
+        const root = userCol();
+        if (!root) return;
+        try {
+          await root
+            .collection("meta")
+            .doc("imgs")
+            .set(
+              { [key]: present ? Date.now() : firebase.firestore.FieldValue.delete() },
+              { merge: true },
+            );
+        } catch (e) {}
+      }
       async function pushImgCloud(key, dataUrl) {
         if (!fbUser || !fbSt) return;
         const p = imgPath(key);
         if (!p) return;
-        try {
-          await fbSt
-            .ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`)
-            .putString(dataUrl, "data_url");
-          say(tnow());
-        } catch (e) {
-          say("圖片上傳失敗：" + fbErr(e));
-        }
+        const ref = fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`);
+        await ref.putString(dataUrl, "data_url");
+        await noteImgCloud(key, true);
       }
       async function deleteImgCloud(key) {
         if (!fbUser || !fbSt) return;
@@ -1750,9 +1761,9 @@
             .ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`)
             .delete();
         } catch (e) {
-          if (e && e.code !== "storage/object-not-found")
-            say("圖片刪除失敗：" + fbErr(e));
+          if (e && e.code !== "storage/object-not-found") throw e;
         }
+        await noteImgCloud(key, false);
       }
       async function deleteDeckCloud(did) {
         if (!fbUser || !fbSt) return;
@@ -1775,36 +1786,54 @@
           ),
         ]);
       }
+      async function fetchImgToCache(key, itemRef) {
+        try {
+          const url = await itemRef.getDownloadURL();
+          const blob = await (await fetch(url)).blob();
+          const dataUrl = await new Promise((ok, no) => {
+            const r = new FileReader();
+            r.onload = () => ok(r.result);
+            r.onerror = no;
+            r.readAsDataURL(blob);
+          });
+          IMG[key] = dataUrl;
+          idbOp((s) => s.put(dataUrl, key));
+        } catch (e) {}
+      }
       async function pullImages() {
         if (!fbUser || !fbSt) return;
+        const keys = new Set();
         try {
-          const root = await withTimeout(
+          const root = userCol();
+          if (root) {
+            const snap = await root.collection("meta").doc("imgs").get();
+            if (snap.exists) {
+              Object.keys(snap.data() || {}).forEach((k) => keys.add(k));
+            }
+          }
+        } catch (e) {}
+        try {
+          const listed = await withTimeout(
             fbSt.ref(`users/${fbUser.uid}`).listAll(),
             15000,
             "圖片列表",
           );
-          for (const pref of root.prefixes) {
+          for (const pref of listed.prefixes) {
             const did = pref.name;
             const files = await pref.listAll();
             for (const item of files.items) {
               const cid = item.name.replace(/\.jpe?g$/i, "");
-              const key = did + ":" + cid;
-              try {
-                const url = await item.getDownloadURL();
-                const blob = await (await fetch(url)).blob();
-                const dataUrl = await new Promise((ok, no) => {
-                  const r = new FileReader();
-                  r.onload = () => ok(r.result);
-                  r.onerror = no;
-                  r.readAsDataURL(blob);
-                });
-                IMG[key] = dataUrl;
-                idbOp((s) => s.put(dataUrl, key));
-              } catch (e) {}
+              keys.add(did + ":" + cid);
             }
           }
-        } catch (e) {
-          say("圖片同步略過：" + fbErr(e));
+        } catch (e) {}
+        for (const key of keys) {
+          const p = imgPath(key);
+          if (!p) continue;
+          await fetchImgToCache(
+            key,
+            fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
+          );
         }
       }
       function userCol() {
