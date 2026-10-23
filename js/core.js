@@ -96,6 +96,12 @@ const MA =
         !$("#v-deck").classList.contains("hide") && $("#deck-det")
           ? $("#deck-det")
           : $("#det");
+      function revealPanel(el) {
+        if (!el) return;
+        el.hidden = false;
+        el.style.display = "";
+        el.classList.remove("hide");
+      }
       function show(id, rev) {
         if (editing) return;
         if (id == null || id === undefined || !D[id]) return;
@@ -105,7 +111,7 @@ const MA =
           im = getImg(id),
           has = u.u || u.r || u.n,
           box = detBox();
-        box.classList.remove("hide");
+        revealPanel(box);
         box.innerHTML = `<div class="det">${im ? `<img src="${im}" class="${rev === true ? "rev" : ""}" alt="">` : ""}<div class="dbody"><h3>${c.sym} ${c.z} <small class="dim">${c.e}・${c.sub}・${esc(deckName(deckId))}</small></h3><p class="${rev !== true ? "hl" : "dim"}"><b>正位：</b>${c.u}</p><p class="${rev === true ? "hl" : "dim"}"><b>逆位：</b>${c.r}</p>${has ? `<div class="pm"><b>🌙 我的牌義</b>${u.u ? `<p><b>正位：</b>${esc(u.u)}</p>` : ""}${u.r ? `<p><b>逆位：</b>${esc(u.r)}</p>` : ""}${u.n ? `<p><b>心得：</b>${esc(u.n)}</p>` : ""}</div>` : ""}<div class="row" style="margin:8px 0 0"><button id="ed">✎ ${has ? "編輯" : "新增"}我的牌義</button><button id="ci">${im ? "更換" : "上傳"}牌面圖</button>${im ? `<button id="cd">刪除卡面</button>` : ""}</div></div></div>`;
         $("#ed").onclick = edit;
         $("#ci").onclick = () => {
@@ -206,7 +212,9 @@ const MA =
       function tipAt(el, id) {
         const tip = $("#tip");
         tip.innerHTML = tipHTML(id);
+        revealPanel(tip);
         tip.classList.remove("hide");
+        tip.hidden = false;
         const r = el.getBoundingClientRect(),
           tw = tip.offsetWidth,
           th = tip.offsetHeight;
@@ -223,18 +231,24 @@ const MA =
         const tip = $("#tip");
         if (!tip) return;
         tip.classList.add("hide");
+        tip.hidden = true;
+        tip.style.display = "none";
         tip.innerHTML = "";
       };
       let drawEpoch = 0;
+      function hidePanel(el) {
+        if (!el) return;
+        el.classList.add("hide");
+        el.hidden = true;
+        el.style.display = "none";
+        el.innerHTML = "";
+      }
       function clearDrawPanels() {
         editing = false;
         cur = [null, undefined];
         tipHide();
         ["det", "deck-det", "aibox"].forEach((id) => {
-          const el = document.getElementById(id);
-          if (!el) return;
-          el.classList.add("hide");
-          el.innerHTML = "";
+          hidePanel(document.getElementById(id));
         });
       }
       function resetDrawPanels() {
@@ -509,9 +523,15 @@ const MA =
       function refreshView(id, rev) {
         redraw();
         // 只有詳情已打開時才更新，避免進牌庫／雲端同步後自動選中一張牌
-        if (id == null || editing) return;
+        if (id == null || id === undefined || editing) return;
         const box = detBox();
-        if (box && !box.classList.contains("hide")) show(id, rev);
+        if (
+          box &&
+          !box.classList.contains("hide") &&
+          !box.hidden &&
+          box.style.display !== "none"
+        )
+          show(id, rev);
       }
       const shrink = (f) =>
         new Promise((ok, no) => {

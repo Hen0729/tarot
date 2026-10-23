@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>偉特塔羅 · 抽牌與筆記</title>
-    <link rel="stylesheet" href="css/styles.css?v=20261023c" />
+    <link rel="stylesheet" href="css/styles.css?v=20261023d" />
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -28,8 +28,8 @@
         </div>
         <div class="slots" id="slots"><span class="mut">按「洗牌抽牌」開始，點擊牌背翻開。</span></div>
         <div class="row" id="acts" style="justify-content: center"></div>
-        <div class="detail hide" id="aibox"></div>
-        <div class="detail hide" id="det"></div>
+        <div class="detail hide" id="aibox" hidden></div>
+        <div class="detail hide" id="det" hidden></div>
       </section>
       <section id="v-hist" class="hide">
         <div class="row">
@@ -46,18 +46,37 @@
           <button id="dren">重新命名</button>
           <button id="ddel">刪除類別</button>
         </div>
-        <div class="detail hide" id="deck-det"></div>
+        <div class="detail hide" id="deck-det" hidden></div>
         <div class="grid" id="deck"></div>
       </section>
       <input type="file" id="fi" accept="image/*" multiple class="hide" />
       <input type="file" id="f1" accept="image/*" class="hide" />
-      <div class="tip hide" id="tip"></div>
+      <div class="tip hide" id="tip" hidden></div>
       <div id="toast" aria-live="polite"></div>
     </main>
-    <script src="js/config.js?v=20261023c"></script>
-    <script src="js/core.js?v=20261023c"></script>
-    <script src="js/spreads.js?v=20261023c"></script>
-    <script src="js/ai.js?v=20261023c"></script>
-    <script src="js/sync.js?v=20261023c"></script>
+    <script>
+      // 捕捉階段先清下方文字卡，避免舊快取 JS 清不掉
+      document.addEventListener(
+        "click",
+        function (e) {
+          var t = e.target;
+          if (!t || t.id !== "go") return;
+          ["det", "aibox", "deck-det", "tip"].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add("hide");
+            el.hidden = true;
+            el.style.display = "none";
+            el.innerHTML = "";
+          });
+        },
+        true,
+      );
+    </script>
+    <script src="js/config.js?v=20261023d"></script>
+    <script src="js/core.js?v=20261023d"></script>
+    <script src="js/spreads.js?v=20261023d"></script>
+    <script src="js/ai.js?v=20261023d"></script>
+    <script src="js/sync.js?v=20261023d"></script>
   </body>
 </html>

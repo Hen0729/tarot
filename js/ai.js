@@ -65,13 +65,13 @@ const cardsOf = (a) =>
         const stillCurrent = () => epoch === drawEpoch && box;
         if (!cs.length) {
           if (!stillCurrent()) return;
-          box.classList.remove("hide");
+          revealPanel(box);
           box.innerHTML = '<p class="mut">尚未選牌。</p>';
           return;
         }
         if (!SM) {
           if (!stillCurrent()) return;
-          box.classList.remove("hide");
+          revealPanel(box);
           box.innerHTML =
             view(cs) +
             "<p><b>逐位置牌義彙整</b></p>" +
@@ -85,25 +85,25 @@ const cardsOf = (a) =>
           return;
         }
         if (!stillCurrent()) return;
-        box.classList.remove("hide");
+        revealPanel(box);
         box.innerHTML = view(cs) + '<p class="mut">AI 解析中…</p>';
         try {
           const r = await SM(promptOf(h, cs), {
             cache: false,
             onText: ({ text }) => {
               if (!stillCurrent()) return;
-              box.classList.remove("hide");
+              revealPanel(box);
               box.innerHTML = view(cs, text);
             },
           });
           if (!stillCurrent()) return;
           h.ai = r.text;
-          box.classList.remove("hide");
+          revealPanel(box);
           box.innerHTML = view(cs, r.text);
           after && after();
         } catch (e) {
           if (!stillCurrent()) return;
-          box.classList.remove("hide");
+          revealPanel(box);
           box.innerHTML =
             view(cs) +
             '<p class="mut">AI 解析失敗（' +

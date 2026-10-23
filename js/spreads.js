@@ -154,13 +154,9 @@
           drawn.forEach((d) => (d.open = true));
           renderDraw();
           // 全部翻開後不要留著「上一張點開」的單卡牌義
+          hidePanel($("#det"));
           cur = [null, undefined];
           tipHide();
-          const det = $("#det");
-          if (det) {
-            det.classList.add("hide");
-            det.innerHTML = "";
-          }
         };
         $("#sv").onclick = () => {
           hist.unshift({
