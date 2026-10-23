@@ -209,9 +209,15 @@
           ? fbDb.collection("users").doc(fbUser.uid)
           : null;
       }
+      let pendingHist = false,
+        pendingCfg = false;
       async function pushHist() {
         const root = userCol();
-        if (!root || syncing) return;
+        if (!root) return;
+        if (syncing) {
+          pendingHist = true;
+          return;
+        }
         try {
           const col = root.collection("hist");
           const seen = new Set();
@@ -238,7 +244,11 @@
       }
       async function pushCfg() {
         const root = userCol();
-        if (!root || syncing) return;
+        if (!root) return;
+        if (syncing) {
+          pendingCfg = true;
+          return;
+        }
         try {
           await root.collection("meta").doc("cfg").set({
             cu: JSON.stringify(CU),
@@ -252,10 +262,21 @@
           say("同步失敗：" + fbErr(e));
         }
       }
+      async function flushPendingCloud() {
+        if (pendingCfg) {
+          pendingCfg = false;
+          await pushCfg();
+        }
+        if (pendingHist) {
+          pendingHist = false;
+          await pushHist();
+        }
+      }
       const later = (k, f) => {
         clearTimeout(tm[k]);
-        tm[k] = setTimeout(f, 1200);
+        tm[k] = setTimeout(f, 400);
       };
+      // 本機一儲存就排程上雲（紀錄／牌義／牌陣／牌組）
       store.set = (k, v) => {
         sset(k, v);
         if (!fbUser) return;
@@ -367,6 +388,7 @@
           say("同步失敗：" + fbErr(e));
         } finally {
           syncing = false;
+          flushPendingCloud();
         }
       }
       hist = hist.filter((h) => h && h.id && Array.isArray(h.cards));
