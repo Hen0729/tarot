@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>偉特塔羅 · 抽牌與筆記</title>
-    <link rel="stylesheet" href="css/styles.css?v=20261023d" />
+    <link rel="stylesheet" href="css/styles.css?v=20261023e" />
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -34,7 +34,10 @@
       <section id="v-hist" class="hide">
         <div class="row">
           <button id="addm">＋ 手動新增紀錄</button>
-          <span class="mut">紀錄存在此瀏覽器中，可隨時編輯問題與筆記。</span>
+          <button type="button" id="bexp">匯出備份</button>
+          <button type="button" id="bimp">匯入備份</button>
+          <input type="file" id="bf" accept="application/json,.json" class="hide" />
+          <span class="mut">可匯出／匯入 JSON；匯入後會同步到雲端。</span>
         </div>
         <div id="list"></div>
       </section>
@@ -73,10 +76,11 @@
         true,
       );
     </script>
-    <script src="js/config.js?v=20261023d"></script>
-    <script src="js/core.js?v=20261023d"></script>
-    <script src="js/spreads.js?v=20261023d"></script>
-    <script src="js/ai.js?v=20261023d"></script>
-    <script src="js/sync.js?v=20261023d"></script>
+    <script src="js/config.js?v=20261023e"></script>
+    <script src="js/core.js?v=20261023e"></script>
+    <script src="js/spreads.js?v=20261023e"></script>
+    <script src="js/ai.js?v=20261023e"></script>
+    <script src="js/sync.js?v=20261023e"></script>
+    <script src="js/backup.js?v=20261023e"></script>
   </body>
 </html>
