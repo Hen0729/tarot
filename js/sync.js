@@ -119,23 +119,30 @@
       }
       async function fetchImgToCache(key, itemRef) {
         try {
-          // 直接存下載網址給 <img src> 用（各裝置／瀏覽器最穩，避開 CORS／getBlob 限制）
+          const cur = IMG[key];
+          // 本機剛上傳的 data URL 已在畫面上，勿立刻改成遠端網址（會閃一下）
+          if (typeof cur === "string" && cur.indexOf("data:") === 0)
+            return false;
           const url = await itemRef.getDownloadURL();
           if (!url) {
             await dropLocalImg(key);
-            return;
+            return true;
           }
+          if (IMG[key] === url) return false;
           IMG[key] = url;
           idbOp((s) => s.put(url, key));
+          return true;
         } catch (e) {
           console.error("下載牌面失敗", key, e);
           await dropLocalImg(key);
+          return true;
         }
       }
       async function pullImages() {
-        if (!fbUser || !fbSt) return;
+        if (!fbUser || !fbSt) return false;
         const keys = new Set();
         let cloudOk = false;
+        let changed = false;
         try {
           const root = userCol();
           if (root) {
@@ -171,7 +178,10 @@
         // 他裝置刪掉的圖：清掉本機快取，避免失效網址把牌格擠爆
         if (cloudOk) {
           Object.keys(IMG).forEach((k) => {
-            if (!keys.has(k)) dropLocalImg(k);
+            if (!keys.has(k)) {
+              dropLocalImg(k);
+              changed = true;
+            }
           });
         }
         // 雲端有圖但本機沒有該牌組時，補上選項以免選不到
@@ -186,6 +196,7 @@
             });
             if (!CU[p.did]) CU[p.did] = {};
             decksChanged = true;
+            changed = true;
           }
         }
         if (decksChanged) {
@@ -193,16 +204,18 @@
           sset("tarot-custom", CU);
           fillDeckSel();
         }
-        await Promise.all(
+        const flags = await Promise.all(
           [...keys].map((key) => {
             const p = imgPath(key);
-            if (!p) return Promise.resolve();
+            if (!p) return Promise.resolve(false);
             return fetchImgToCache(
               key,
               fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
             );
           }),
         );
+        if (flags.some(Boolean)) changed = true;
+        return changed;
       }
       function userCol() {
         return fbUser && fbDb
@@ -440,7 +453,8 @@
             liveTimer = null;
           async function refreshImgsLive() {
             if (!fbUser || !fbSt || syncing) return;
-            await pullImages();
+            const changed = await pullImages();
+            if (!changed) return;
             redraw();
             refreshView(cur[0], cur[1]);
           }

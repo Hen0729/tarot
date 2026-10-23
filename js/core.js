@@ -704,10 +704,8 @@ const MA =
         } catch (x) {
           return;
         }
-        // 先更新本機畫面
+        // 先用本機 data URL 更新畫面（避免上傳後又被遠端網址重繪而閃爍）
         refreshView(id, rev);
-        requestAnimationFrame(() => refreshView(id, rev));
-        // 再等雲端傳完，換裝置才看得到
         if (packed) {
           try {
             await pushImgCloud(packed.key, packed.dataUrl);
