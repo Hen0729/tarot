@@ -612,8 +612,10 @@ const MA =
           key = ik(id);
         IMG[key] = d;
         pinImg(key);
-        if (typeof imgQuietUntil !== "undefined")
-          imgQuietUntil = Date.now() + 30000;
+        const now = Date.now();
+        if (typeof imgQuietUntil !== "undefined") imgQuietUntil = now + 30000;
+        // 標記本機剛上傳，避免同步瞬間用舊雲端圖蓋回來
+        if (typeof imgMetaApplied !== "undefined") imgMetaApplied[key] = now;
         idbOp((s) => s.put(d, key));
         return { key, dataUrl: d };
       }
@@ -750,19 +752,51 @@ const MA =
           });
         }
       };
+      function imgVer(src) {
+        const m = String(src || "").match(/[?&]v=(\d+)/);
+        return m ? +m[1] : 0;
+      }
+      /** 還原本機快取時，勿蓋掉本 session 已從雲端套用的較新圖 */
+      function acceptIdbImg(key, v) {
+        if (!key || v == null) return;
+        const cur = IMG[key];
+        if (
+          typeof imgMetaApplied !== "undefined" &&
+          imgMetaApplied[key] &&
+          imgVer(v) < imgMetaApplied[key]
+        )
+          return;
+        if (cur) {
+          const curHttp = String(cur).indexOf("http") === 0;
+          const vData = String(v).indexOf("data:") === 0;
+          // 雲端 https 已被套用時，不要被舊的 data URL／較舊 v= 蓋掉
+          if (curHttp && vData) return;
+          if (curHttp && imgVer(cur) > imgVer(v)) return;
+          if (
+            typeof imgMetaApplied !== "undefined" &&
+            imgMetaApplied[key] &&
+            curHttp
+          )
+            return;
+        }
+        IMG[key] = v;
+      }
       idbOp((s) => ({ k: s.getAllKeys(), v: s.getAll() })).then((r) => {
         if (r && r.k.result) {
           r.k.result.forEach((k, i) => {
             const v = r.v.result[i];
             if (typeof k === "number" || /^\d+$/.test(String(k))) {
               const key = "rws:" + k;
-              IMG[key] = v;
+              acceptIdbImg(key, v);
               idbOp((s) => {
                 s.delete(k);
                 s.put(v, key);
               });
-            } else IMG[k] = v;
+            } else acceptIdbImg(k, v);
           });
           redraw();
+          // idb 較慢時可能晚於首次雲端同步；再補拉一次以免停在舊圖
+          if (typeof window.refreshImgsLive === "function")
+            window.refreshImgsLive();
         }
       });

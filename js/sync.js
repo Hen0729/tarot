@@ -39,17 +39,23 @@
           cid: key.slice(i + 1),
         };
       }
-      async function noteImgCloud(key, present) {
+      /** 各牌面上次套用的雲端時間戳（更換圖時 URL 常不變，要靠這個判斷） */
+      const imgMetaApplied = {};
+      async function noteImgCloud(key, present, ts) {
         const root = userCol();
         if (!root) return;
         try {
+          const stamp = present
+            ? typeof ts === "number"
+              ? ts
+              : Date.now()
+            : firebase.firestore.FieldValue.delete();
           await root
             .collection("meta")
             .doc("imgs")
-            .set(
-              { [key]: present ? Date.now() : firebase.firestore.FieldValue.delete() },
-              { merge: true },
-            );
+            .set({ [key]: stamp }, { merge: true });
+          if (present && typeof stamp === "number")
+            imgMetaApplied[key] = Math.max(imgMetaApplied[key] || 0, stamp);
         } catch (e) {
           console.error("寫入圖片索引失敗", key, e);
         }
@@ -67,8 +73,9 @@
           contentType: "image/jpeg",
         });
         // 自家上傳後忽略即時拉取，避免偶發整頁重繪閃爍
-        imgQuietUntil = Date.now() + 30000;
-        await noteImgCloud(key, true);
+        const ts = Date.now();
+        imgQuietUntil = ts + 30000;
+        await noteImgCloud(key, true, ts);
       }
       async function deleteImgCloud(key) {
         if (!fbUser || !fbSt) return;
@@ -109,33 +116,47 @@
         delete imgMetaApplied[key];
         idbOp((s) => s.delete(key));
       }
-      /** 各牌面上次套用的雲端時間戳（更換圖時 URL 常不變，要靠這個判斷） */
-      const imgMetaApplied = {};
       async function fetchImgToCache(key, itemRef, metaTs) {
         metaTs = typeof metaTs === "number" ? metaTs : 0;
         try {
           const cur = IMG[key];
-          // 本機上傳／data URL：本 session 不換成遠端網址
-          if (
-            (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key)) ||
-            (typeof cur === "string" && cur.indexOf("data:") === 0)
-          )
-            return { changed: false, key };
+          const applied = imgMetaApplied[key] || 0;
+          // 雲端時間戳更新＝他機更換過：強制改抓，可蓋掉本機 data URL／pin
+          const forceCloud = !!(metaTs && metaTs > applied);
+          if (!forceCloud) {
+            if (
+              (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key)) ||
+              (typeof cur === "string" && cur.indexOf("data:") === 0)
+            )
+              return { changed: false, key };
+            if (metaTs && applied >= metaTs) return { changed: false, key };
+          } else if (typeof pinnedImgs !== "undefined") {
+            pinnedImgs.delete(key);
+          }
           const url = await itemRef.getDownloadURL();
           if (!url) {
-            if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key))
+            if (
+              !forceCloud &&
+              typeof pinnedImgs !== "undefined" &&
+              pinnedImgs.has(key)
+            )
               return { changed: false, key };
             await dropLocalImg(key);
             return { changed: true, key, removed: true };
           }
-          const applied = imgMetaApplied[key] || 0;
-          // 更換牌面時 Storage 路徑／下載網址通常不變，用 meta 時間戳強制刷新
-          if (metaTs && applied >= metaTs) return { changed: false, key };
-          if (!metaTs && (IMG[key] === url || String(IMG[key]).indexOf(url) === 0))
-            return { changed: false, key };
           const displayUrl = metaTs
             ? url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + metaTs
             : url;
+          if (!forceCloud) {
+            if (IMG[key] === displayUrl || IMG[key] === url)
+              return { changed: false, key };
+            if (
+              !metaTs &&
+              typeof IMG[key] === "string" &&
+              IMG[key].indexOf(url) === 0
+            )
+              return { changed: false, key };
+          }
           IMG[key] = displayUrl;
           imgMetaApplied[key] = metaTs || Date.now();
           idbOp((s) => s.put(displayUrl, key));
@@ -144,8 +165,8 @@
           console.error("下載牌面失敗", key, e);
           if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key))
             return { changed: false, key };
-          await dropLocalImg(key);
-          return { changed: true, key, removed: true };
+          // 暫時下載失敗不要清掉本機圖，避免整排變空白
+          return { changed: false, key };
         }
       }
       async function pullImages() {
@@ -252,16 +273,19 @@
       /** 遠端圖有變時只更新那幾張，避免整副牌庫 redraw 讓其他牌也閃 */
       async function applyImgPullResult(result) {
         if (!result || !result.changed) return;
-        const idSet = new Set();
+        const items = [];
         [...(result.changedKeys || []), ...(result.removedKeys || [])].forEach(
           (key) => {
             const p = imgPath(key);
             if (!p) return;
             const id = +p.cid;
-            if (!Number.isNaN(id)) idSet.add(id);
+            if (Number.isNaN(id)) return;
+            items.push({ id, did: p.did });
           },
         );
-        for (const id of idSet) {
+        for (const { id, did } of items) {
+          // 只刷新目前正在看的牌組，避免錯牌組的圖蓋到畫面上
+          if (did !== deckId) continue;
           const rev = cur[0] === id ? cur[1] : undefined;
           if (typeof softRefreshView === "function")
             await softRefreshView(id, rev);
@@ -537,6 +561,8 @@
             // 不要 redraw() 整頁：其他已有圖的牌會一起閃
             await applyImgPullResult(result);
           }
+          // 供本機 idb 還原後補拉（定義在此閉包內，掛到 window）
+          window.refreshImgsLive = refreshImgsLive;
           function watchCloudImgs() {
             const root = userCol();
             if (!root) return;
