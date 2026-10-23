@@ -346,177 +346,17 @@ const MA =
           ],
         ],
       };
-      function renderDraw() {
-        const n = drawn.length;
-        if (!n) return;
-        $("#slots").className = "slots" + (n >= 6 ? " sm" : "");
-        $("#slots").innerHTML = drawn
-          .map(
-            (d, i) =>
-              `<div class="slot">${pos[i]}<br>${d.open ? face(D[d.id], d.r, true) : `<div class="card back" data-i="${i}">✦</div>`}</div>`,
-          )
-          .join("");
-        $("#slots")
-          .querySelectorAll(".card.back")
-          .forEach(
-            (el) =>
-              (el.onclick = () => {
-                const d = drawn[+el.dataset.i];
-                d.open = true;
-                renderDraw();
-                show(d.id, d.r);
-              }),
-          );
-        bindHover($("#slots"));
-        bindBrokenImgs($("#slots"));
-        $("#acts").innerHTML =
-          `<button id="all">全部翻開</button>${drawn.every((d) => d.open) ? '<button class="pri" id="sv">儲存到紀錄</button>' : ""}`;
-        $("#all").onclick = () => {
-          drawn.forEach((d) => (d.open = true));
-          renderDraw();
-        };
-        if ($("#sv"))
-          $("#sv").onclick = () => {
-            hist.unshift({
-              id: Date.now(),
-              t: new Date().toLocaleString("zh-TW"),
-              q: $("#q").value,
-              note: "",
-              spread: spName + "：" + pos.join("/"),
-              cards: drawn.map((d, i) => ({ i: d.id, r: d.r, p: pos[i] })),
-            });
-            save();
-            drawn = [];
-            $("#slots").innerHTML =
-              '<span class="mut">已儲存！可到「我的紀錄」補寫筆記。</span>';
-            $("#acts").innerHTML = "";
-            tab("hist");
-          };
-      }
-      $("#go").onclick = () => {
-        resetDrawPanels();
-        $("#slots").innerHTML = '<span class="mut">洗牌中…</span>';
-        $("#acts").innerHTML = "";
-        const a = [...Array(78).keys()];
-        for (let i = 77; i > 0; i--) {
-          const j = randInt(i);
-          [a[i], a[j]] = [a[j], a[i]];
-        }
-        const s = SP[$("#sp").value];
-        if (!s) return;
-        spName = s[0];
-        pos = s[1];
-        drawn = a
-          .slice(0, pos.length)
-          .map((id) => ({
-            id,
-            r: $("#rv").checked && rand() < 0.5,
-            open: false,
-          }));
-        renderDraw();
-        clearDrawPanels();
-      };
+      // 抽牌／紀錄列表／分頁 tab、#go、#addm 由 spreads.js 提供（勿在此重複定義）
       const esc = (s) =>
         String(s).replace(
           /[&<>"]/g,
           (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[m],
         );
-      function renderList() {
-        const L = $("#list");
-        if (!hist.length) {
-          L.innerHTML = '<p class="mut">還沒有紀錄。</p>';
-          return;
-        }
-        L.innerHTML = hist
-          .map(
-            (
-              h,
-            ) => `<div class="entry" data-h="${h.id}"><div class="mut">${h.t}・${esc(h.spread || "自訂")}</div>
- <input type="text" class="hq" style="width:100%;margin-top:6px" placeholder="問題" value="${esc(h.q)}">
- <div class="chips">${h.cards.map((c, k) => `<span class="chip" data-id="${c.i}" data-rev="${c.r ? 1 : 0}">${c.p ? c.p + "：" : ""}${D[c.i].z}${c.r ? "（逆）" : ""} <b class="x" data-k="${k}">×</b></span>`).join("")}</div>
- <div class="row"><select class="ac">${D.map((c) => `<option value="${c.id}">${c.z}</option>`).join("")}</select><label class="mut"><input type="checkbox" class="ar" style="padding:0"> 逆位</label><button class="ab">加入此牌</button></div>
- <textarea class="hn" placeholder="我的塔羅筆記…">${esc(h.note)}</textarea>
- <div class="row" style="margin:6px 0 0"><button class="del">刪除此紀錄</button></div></div>`,
-          )
-          .join("");
-        L.querySelectorAll(".entry").forEach((el) => {
-          const h = hist.find((x) => x.id == el.dataset.h);
-          el.querySelector(".hq").oninput = (e) => {
-            h.q = e.target.value;
-            save();
-          };
-          el.querySelector(".hn").oninput = (e) => {
-            h.note = e.target.value;
-            save();
-          };
-          el.querySelector(".ab").onclick = () => {
-            h.cards.push({
-              i: +el.querySelector(".ac").value,
-              r: el.querySelector(".ar").checked,
-              p: "",
-            });
-            save();
-            renderList();
-          };
-          {
-            const b = el.querySelector(".del");
-            b.onclick = () => {
-              if (b.dataset.s) {
-                hist = hist.filter((x) => x !== h);
-                save();
-                renderList();
-              } else {
-                b.dataset.s = 1;
-                b.textContent = "再按一次確認刪除";
-              }
-            };
-          }
-          el.querySelectorAll(".chip").forEach((c) => {
-            c.onclick = (e) => {
-              if (e.target.classList.contains("x")) {
-                h.cards.splice(+e.target.dataset.k, 1);
-                save();
-                renderList();
-              } else {
-                // 紀錄頁點牌：切到抽牌頁再顯示詳情
-                tipHide();
-                tab("draw");
-                show(+c.dataset.id, c.dataset.rev == "1");
-              }
-            };
-          });
-        });
-      }
-      $("#addm").onclick = () => {
-        hist.unshift({
-          id: Date.now(),
-          t: new Date().toLocaleString("zh-TW"),
-          q: "",
-          note: "",
-          spread: "",
-          cards: [],
-        });
-        save();
-        renderList();
-      };
       $("#deck").innerHTML = D.map((c) => face(c, false, false)).join("");
       bindDeck();
-      function tab(t) {
-        ["draw", "hist", "deck"].forEach((k) => {
-          $("#v-" + k).classList.toggle("hide", k != t);
-          $("#t-" + k).classList.toggle("on", k == t);
-        });
-        if (t == "hist") renderList();
-      }
       ["draw", "hist", "deck"].forEach(
         (k) => ($("#t-" + k).onclick = () => tab(k)),
       );
-      $("#sp").innerHTML = Object.entries(SP)
-        .map(
-          ([k, v]) =>
-            `<option value="${k}"${k == "three" ? " selected" : ""}>${v[0]}（${v[1].length}張）</option>`,
-        )
-        .join("");
       const idb = new Promise((r) => {
         try {
           const q = indexedDB.open("tarot", 1);
