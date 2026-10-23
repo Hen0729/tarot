@@ -1985,13 +1985,43 @@
           fbAuth = firebase.auth();
           fbDb = firebase.firestore();
           try {
-            fbDb.settings({ ignoreUndefinedProperties: true });
+            fbDb.settings({
+              ignoreUndefinedProperties: true,
+              experimentalForceLongPolling: true,
+            });
           } catch (e) {}
           fbSt = firebase.storage();
+          async function assertFirestore(u) {
+            const token = await u.getIdToken();
+            const url =
+              "https://firestore.googleapis.com/v1/projects/" +
+              FIREBASE_CONFIG.projectId +
+              "/databases/(default)/documents/users/" +
+              u.uid +
+              "/hist";
+            const r = await fetch(url, {
+              headers: { Authorization: "Bearer " + token },
+            });
+            if (r.status === 403) {
+              const t = await r.text();
+              if (/has not been used|disabled|PERMISSION_DENIED/i.test(t))
+                throw new Error(
+                  "請先啟用 Cloud Firestore API（Firebase 建立 Firestore 資料庫，並到 Google Cloud 開啟 API）",
+                );
+            }
+            if (r.status === 404 && /database/i.test(await r.clone().text().catch(() => "")))
+              throw new Error("請先在 Firebase 建立 Firestore 資料庫");
+          }
           fbAuth.onAuthStateChanged(async (u) => {
             fbUser = u;
             if (u) {
-              say("已登入，開始同步…");
+              say("已登入，檢查雲端…");
+              try {
+                await assertFirestore(u);
+              } catch (e) {
+                say("同步失敗：" + fbErr(e));
+                return;
+              }
               if (
                 !cfgU &&
                 (Object.keys(CU).length || Object.keys(CS).length)
