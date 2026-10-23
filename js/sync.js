@@ -305,6 +305,60 @@
           say("同步失敗：" + fbErr(e));
         }
       }
+      let cfgQuietUntil = 0;
+      /** 套用雲端設定（牌義／牌陣／牌組類別）；回傳是否有更新 */
+      function applyCloudCfg(cfg) {
+        if (!cfg || (cfg.u || 0) <= cfgU) return false;
+        try {
+          const raw = JSON.parse(cfg.cu || "{}");
+          const keys = Object.keys(raw || {});
+          CU =
+            keys.length && keys.every((k) => /^\d+$/.test(k))
+              ? { rws: raw }
+              : raw || {};
+          CS = JSON.parse(cfg.cs || "{}");
+          if (cfg.decks) {
+            try {
+              const ds = JSON.parse(cfg.decks);
+              if (Array.isArray(ds) && ds.length) DECKS = ds;
+            } catch (e) {}
+          }
+          if (cfg.deckId && DECKS.some((d) => d.id === cfg.deckId))
+            deckId = cfg.deckId;
+          else if (!DECKS.some((d) => d.id === deckId))
+            deckId = DECKS[0].id;
+          if (!CU[deckId]) CU[deckId] = {};
+          cfgU = cfg.u;
+          sset("tarot-custom", CU);
+          sset("tarot-cs", CS);
+          sset("tarot-decks", DECKS);
+          sset("tarot-deck-id", deckId);
+          sset("tarot-cfgu", cfgU);
+          return true;
+        } catch (e) {
+          console.error("套用雲端設定失敗", e);
+          return false;
+        }
+      }
+      function refreshCfgUi() {
+        fillSp();
+        fillDeckSel();
+        redraw();
+        refreshView(cur[0], cur[1]);
+        if (!$("#v-hist").classList.contains("hide")) renderList();
+      }
+      async function pullCfgLive() {
+        const root = userCol();
+        if (!root || syncing) return;
+        if (Date.now() < cfgQuietUntil) return;
+        try {
+          const snap = await root.collection("meta").doc("cfg").get();
+          if (!snap.exists) return;
+          if (applyCloudCfg(snap.data())) refreshCfgUi();
+        } catch (e) {
+          console.error("拉取設定失敗", e);
+        }
+      }
       async function pushCfg() {
         const root = userCol();
         if (!root) return;
@@ -313,6 +367,7 @@
           return;
         }
         try {
+          cfgQuietUntil = Date.now() + 3000;
           await root.collection("meta").doc("cfg").set({
             cu: JSON.stringify(CU),
             cs: JSON.stringify(CS),
@@ -403,32 +458,7 @@
             if (cfgSnap.exists) cfg = cfgSnap.data();
           } catch (e) {}
           if (cfg && (cfg.u || 0) > cfgU) {
-            try {
-              const raw = JSON.parse(cfg.cu || "{}");
-              const keys = Object.keys(raw || {});
-              CU =
-                keys.length && keys.every((k) => /^\d+$/.test(k))
-                  ? { rws: raw }
-                  : raw || {};
-              CS = JSON.parse(cfg.cs || "{}");
-              if (cfg.decks) {
-                try {
-                  const ds = JSON.parse(cfg.decks);
-                  if (Array.isArray(ds) && ds.length) DECKS = ds;
-                } catch (e) {}
-              }
-              if (cfg.deckId && DECKS.some((d) => d.id === cfg.deckId))
-                deckId = cfg.deckId;
-              else if (!DECKS.some((d) => d.id === deckId))
-                deckId = DECKS[0].id;
-              if (!CU[deckId]) CU[deckId] = {};
-              cfgU = cfg.u;
-              sset("tarot-custom", CU);
-              sset("tarot-cs", CS);
-              sset("tarot-decks", DECKS);
-              sset("tarot-deck-id", deckId);
-              sset("tarot-cfgu", cfgU);
-            } catch (e) {}
+            applyCloudCfg(cfg);
           } else if (!cfg || cfgU > (cfg.u || 0)) {
             say("上傳設定中…");
             syncing = false;
@@ -441,11 +471,7 @@
           syncing = true;
           say("同步圖片中…");
           await pullImages();
-          fillSp();
-          fillDeckSel();
-          redraw();
-          refreshView(cur[0], cur[1]);
-          if (!$("#v-hist").classList.contains("hide")) renderList();
+          refreshCfgUi();
           say(tnow());
         } catch (e) {
           say("同步失敗：" + fbErr(e));
@@ -499,7 +525,9 @@
               throw new Error("請先在 Firebase 建立 Firestore 資料庫");
           }
           let unsubImgs = null,
+            unsubCfg = null,
             liveSkip = true,
+            cfgLiveSkip = true,
             liveTimer = null;
           async function refreshImgsLive() {
             if (!fbUser || !fbSt || syncing) return;
@@ -532,6 +560,30 @@
                 (e) => console.error("圖片即時同步失敗", e),
               );
           }
+          function watchCloudCfg() {
+            const root = userCol();
+            if (!root) return;
+            if (unsubCfg) {
+              unsubCfg();
+              unsubCfg = null;
+            }
+            cfgLiveSkip = true;
+            unsubCfg = root
+              .collection("meta")
+              .doc("cfg")
+              .onSnapshot(
+                (snap) => {
+                  if (cfgLiveSkip) {
+                    cfgLiveSkip = false;
+                    return;
+                  }
+                  if (syncing || Date.now() < cfgQuietUntil) return;
+                  if (!snap.exists) return;
+                  if (applyCloudCfg(snap.data())) refreshCfgUi();
+                },
+                (e) => console.error("設定即時同步失敗", e),
+              );
+          }
           fbAuth.onAuthStateChanged(async (u) => {
             fbUser = u;
             if (u) {
@@ -551,23 +603,33 @@
               }
               await syncAll();
               watchCloudImgs();
-            } else if (unsubImgs) {
-              unsubImgs();
-              unsubImgs = null;
+              watchCloudCfg();
+            } else {
+              if (unsubImgs) {
+                unsubImgs();
+                unsubImgs = null;
+              }
+              if (unsubCfg) {
+                unsubCfg();
+                unsubCfg = null;
+              }
             }
           });
           // 切回分頁／視窗時再同步（不必整頁刷新）
           document.addEventListener("visibilitychange", () => {
             if (document.hidden || !fbUser || !fbSt || syncing) return;
+            pullCfgLive();
             refreshImgsLive();
           });
           window.addEventListener("focus", () => {
             if (!fbUser || !fbSt || syncing) return;
+            pullCfgLive();
             refreshImgsLive();
           });
           // 頁面開著時定期補拉（即時監聽漏掉時的後備）
           liveTimer = setInterval(() => {
             if (document.hidden || !fbUser || !fbSt || syncing) return;
+            pullCfgLive();
             refreshImgsLive();
           }, 20000);
           try {
