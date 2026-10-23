@@ -1,35 +1,30 @@
 # Firebase 設定（跨裝置同步）
 
+網站不顯示登入畫面：在 `index.html` 填好設定後會**自動登入並同步**。
+
 ## 1. 建立專案
 
-1. 打開 [Firebase Console](https://console.firebase.google.com/)
-2. 新增專案 → 新增 **Web App**（暱稱隨意；**不要勾** Firebase 託管）
-3. 註冊後複製畫面上的 `firebaseConfig`
+1. [Firebase Console](https://console.firebase.google.com/) 新增專案
+2. 新增 **Web App**（不要勾託管）→ 複製 `firebaseConfig`
+3. Authentication → 啟用 **Email/Password**
+4. 建立 **Firestore**、**Storage**
+5. Authentication → Settings → Authorized domains 加入 `hen0729.github.io`
 
-## 2. 寫進程式
+## 2. 寫進 index.html
 
-編輯 `index.html`，找到：
+找到並填入：
 
 ```js
-const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  ...
+const FIREBASE_CONFIG = { /* 貼上 Console 的 config */ };
+const FIREBASE_AUTH = {
+  email: "你的信箱@example.com",
+  password: "你的密碼",
 };
 ```
 
-把值換成你複製的那組，存檔後 `git push`。
+存檔後 `git push`。首次開啟網站會自動註冊／登入該帳號並同步。
 
-## 3. 啟用服務
-
-- **Authentication** → 登入方式 → 啟用 **Email/Password**
-- **Firestore** → 建立資料庫
-- **Storage** → 建立
-
-## 4. 授權網域
-
-Authentication → Settings → Authorized domains 加入：`hen0729.github.io`
-
-## 5. 安全規則（建議）
+## 3. 安全規則（建議）
 
 ### Firestore
 
@@ -57,6 +52,4 @@ service firebase.storage {
 }
 ```
 
-## 6. 使用
-
-打開 https://hen0729.github.io/tarot/ → **登入雲端** → 註冊／登入。
+注意：帳密寫在前端原始碼裡，只適合**單人私用**網站；不要用重要密碼。
