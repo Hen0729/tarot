@@ -116,14 +116,24 @@
         delete imgMetaApplied[key];
         idbOp((s) => s.delete(key));
       }
+      function stripImgBust(u) {
+        return String(u || "")
+          .replace(/[?&]v=\d+/g, "")
+          .replace(/\?&/, "?")
+          .replace(/[?&]$/, "");
+      }
+      function bustImgUrl(url, metaTs) {
+        if (!metaTs) return url;
+        return url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + metaTs;
+      }
       async function fetchImgToCache(key, itemRef, metaTs) {
         metaTs = typeof metaTs === "number" ? metaTs : 0;
         try {
           const cur = IMG[key];
           const applied = imgMetaApplied[key] || 0;
-          // 雲端時間戳更新＝他機更換過：強制改抓，可蓋掉本機 data URL／pin
-          const forceCloud = !!(metaTs && metaTs > applied);
-          if (!forceCloud) {
+          // 雲端時間戳比本機新＝他機真的換過圖
+          const remoteNewer = !!(metaTs && metaTs > applied);
+          if (!remoteNewer) {
             if (
               (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key)) ||
               (typeof cur === "string" && cur.indexOf("data:") === 0)
@@ -136,7 +146,7 @@
           const url = await itemRef.getDownloadURL();
           if (!url) {
             if (
-              !forceCloud &&
+              !remoteNewer &&
               typeof pinnedImgs !== "undefined" &&
               pinnedImgs.has(key)
             )
@@ -144,19 +154,27 @@
             await dropLocalImg(key);
             return { changed: true, key, removed: true };
           }
-          const displayUrl = metaTs
-            ? url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + metaTs
-            : url;
-          if (!forceCloud) {
-            if (IMG[key] === displayUrl || IMG[key] === url)
-              return { changed: false, key };
-            if (
-              !metaTs &&
-              typeof IMG[key] === "string" &&
-              IMG[key].indexOf(url) === 0
-            )
-              return { changed: false, key };
+          const displayUrl = bustImgUrl(url, metaTs);
+          // 已是同一張（含僅差 cache bust）：只補時間戳，不改 src，避免進頁閃爍
+          const sameSrc =
+            cur === displayUrl ||
+            cur === url ||
+            (cur && stripImgBust(cur) === stripImgBust(url));
+          if (sameSrc && !remoteNewer) {
+            if (metaTs) imgMetaApplied[key] = Math.max(applied, metaTs);
+            return { changed: false, key };
           }
+          // 首次進頁：本機已有圖、只是還沒記下 meta → 靜默對齊，不要重載
+          if (sameSrc && remoteNewer && applied === 0) {
+            const ver = imgVer(cur);
+            if (!ver || ver >= metaTs) {
+              imgMetaApplied[key] = metaTs;
+              if (cur !== displayUrl) idbOp((s) => s.put(displayUrl, key));
+              return { changed: false, key };
+            }
+            // ver < metaTs：本機快取確實偏舊，繼續換新
+          }
+          if (!remoteNewer && cur === displayUrl) return { changed: false, key };
           IMG[key] = displayUrl;
           imgMetaApplied[key] = metaTs || Date.now();
           idbOp((s) => s.put(displayUrl, key));
@@ -567,8 +585,9 @@
             );
             if (cfgSnap.exists) cfg = cfgSnap.data();
           } catch (e) {}
+          let cfgCh = false;
           if (cfg && (cfg.u || 0) > cfgU) {
-            applyCloudCfg(cfg);
+            cfgCh = applyCloudCfg(cfg);
           } else if (!cfg || cfgU > (cfg.u || 0)) {
             say("上傳設定中…");
             syncing = false;
@@ -580,8 +599,11 @@
           await pushHist();
           syncing = true;
           say("同步圖片中…");
-          await pullImages();
-          refreshCfgUi();
+          const imgResult = await pullImages();
+          // 進頁時若本機已畫過牌面，勿整頁 redraw（會載完再閃一次）
+          if (cfgCh) refreshCfgUi(cfgCh);
+          else if (imgResult && imgResult.changed)
+            await applyImgPullResult(imgResult);
           say(tnow());
         } catch (e) {
           say("同步失敗：" + fbErr(e));

@@ -793,46 +793,57 @@ const MA =
         const m = String(src || "").match(/[?&]v=(\d+)/);
         return m ? +m[1] : 0;
       }
-      /** 還原本機快取時，勿蓋掉本 session 已從雲端套用的較新圖 */
+      /** 還原本機快取；回傳是否有寫入 IMG（沒變就不要 redraw，避免閃爍） */
       function acceptIdbImg(key, v) {
-        if (!key || v == null) return;
+        if (!key || v == null) return false;
         const cur = IMG[key];
         if (
           typeof imgMetaApplied !== "undefined" &&
           imgMetaApplied[key] &&
           imgVer(v) < imgMetaApplied[key]
         )
-          return;
+          return false;
         if (cur) {
           const curHttp = String(cur).indexOf("http") === 0;
           const vData = String(v).indexOf("data:") === 0;
           // 雲端 https 已被套用時，不要被舊的 data URL／較舊 v= 蓋掉
-          if (curHttp && vData) return;
-          if (curHttp && imgVer(cur) > imgVer(v)) return;
+          if (curHttp && vData) return false;
+          if (curHttp && imgVer(cur) > imgVer(v)) return false;
           if (
             typeof imgMetaApplied !== "undefined" &&
             imgMetaApplied[key] &&
             curHttp
           )
-            return;
+            return false;
+          if (cur === v) {
+            const ver = imgVer(v);
+            if (ver && typeof imgMetaApplied !== "undefined")
+              imgMetaApplied[key] = Math.max(imgMetaApplied[key] || 0, ver);
+            return false;
+          }
         }
         IMG[key] = v;
+        const ver = imgVer(v);
+        if (ver && typeof imgMetaApplied !== "undefined")
+          imgMetaApplied[key] = Math.max(imgMetaApplied[key] || 0, ver);
+        return true;
       }
       idbOp((s) => ({ k: s.getAllKeys(), v: s.getAll() })).then((r) => {
         if (r && r.k.result) {
+          let changed = false;
           r.k.result.forEach((k, i) => {
             const v = r.v.result[i];
             if (typeof k === "number" || /^\d+$/.test(String(k))) {
               const key = "rws:" + k;
-              acceptIdbImg(key, v);
+              if (acceptIdbImg(key, v)) changed = true;
               idbOp((s) => {
                 s.delete(k);
                 s.put(v, key);
               });
-            } else acceptIdbImg(k, v);
+            } else if (acceptIdbImg(k, v)) changed = true;
           });
-          redraw();
-          // idb 較慢時可能晚於首次雲端同步；再補拉一次以免停在舊圖
+          if (changed) redraw();
+          // idb 較慢時可能晚於首次雲端同步；靜默補拉（無變更不會重繪）
           if (typeof window.refreshImgsLive === "function")
             window.refreshImgsLive();
         }
