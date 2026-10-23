@@ -456,7 +456,7 @@
         <button id="t-hist">我的紀錄</button>
         <button id="t-deck">78 張牌庫</button>
         <span id="auth-bar" class="row" style="margin: 0">
-          <span class="mut" id="sync">本機儲存</span>
+          <span class="mut" id="sync"></span>
         </span>
       </nav>
 
@@ -1703,10 +1703,6 @@
         password: "tarot123",
       };
       const sset = store.set.bind(store),
-        say = (m) => {
-          const el = $("#sync");
-          if (el) el.textContent = m;
-        },
         tnow = () => "☁️ 已同步 " + new Date().toLocaleTimeString("zh-TW"),
         jstr = (h) => JSON.stringify({ ...h, u: 0 }),
         fbErr = (e) => e && (e.code || e.message || String(e));
@@ -1717,7 +1713,23 @@
         lastS = {},
         tm = {},
         cfgU = store.get("tarot-cfgu", 0),
-        syncing = false;
+        syncing = false,
+        sayTimer = null;
+      // 狀態列：進行中保留；成功／錯誤顯示後自動消失，避免一直卡在導覽列
+      const say = (m, opt) => {
+        const el = $("#sync");
+        if (!el) return;
+        el.textContent = m || "";
+        clearTimeout(sayTimer);
+        if (!m || (opt && opt.sticky)) return;
+        const progress = /中…$|檢查雲端|處理圖片/.test(m);
+        if (progress) return;
+        const hold =
+          (opt && opt.hold) || (/失敗|請先|略過/.test(m) ? 8000 : 2800);
+        sayTimer = setTimeout(() => {
+          el.textContent = "";
+        }, hold);
+      };
       function fbConfigured() {
         return !!(
           FIREBASE_CONFIG &&
@@ -1984,12 +1996,9 @@
       hist = hist.filter((h) => h && h.id && Array.isArray(h.cards));
       sset("tarot-hist", hist);
       (async () => {
-        if (!fbConfigured()) {
-          say("本機儲存");
-          return;
-        }
+        if (!fbConfigured()) return;
         if (typeof firebase === "undefined") {
-          say("本機儲存（Firebase SDK 載入失敗）");
+          say("Firebase SDK 載入失敗");
           return;
         }
         try {
@@ -2073,7 +2082,7 @@
             }
           }
         } catch (e) {
-          say("本機儲存（" + fbErr(e) + "）");
+          say("雲端初始化失敗：" + fbErr(e));
         }
       })();
       const rl1 = renderList;
