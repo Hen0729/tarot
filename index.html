@@ -495,44 +495,26 @@
           <span class="mut" id="sync">本機儲存</span>
           <button id="syncb" class="hide">立即同步</button>
           <button id="auth-btn">登入雲端</button>
-          <button id="fb-cfg">雲端設定</button>
         </span>
       </nav>
       <div id="auth-modal">
         <div class="box">
-          <h3 id="auth-title">登入雲端同步</h3>
-          <div id="auth-form">
-            <label class="mut">Email</label>
-            <input id="auth-email" type="email" autocomplete="username" />
-            <label class="mut">密碼（至少 6 碼）</label>
-            <input
-              id="auth-pass"
-              type="password"
-              autocomplete="current-password"
-            />
-            <div class="row">
-              <button class="pri" id="auth-in">登入</button>
-              <button id="auth-up">註冊</button>
-              <button id="auth-out" class="hide">登出</button>
-              <button id="auth-x">關閉</button>
-            </div>
-            <p class="mut" id="auth-msg"></p>
+          <h3>登入雲端同步</h3>
+          <label class="mut">Email</label>
+          <input id="auth-email" type="email" autocomplete="username" />
+          <label class="mut">密碼（至少 6 碼）</label>
+          <input
+            id="auth-pass"
+            type="password"
+            autocomplete="current-password"
+          />
+          <div class="row">
+            <button class="pri" id="auth-in">登入</button>
+            <button id="auth-up">註冊</button>
+            <button id="auth-out" class="hide">登出</button>
+            <button id="auth-x">關閉</button>
           </div>
-          <div id="cfg-form" class="hide">
-            <p class="mut">
-              貼上 Firebase Console 的 firebaseConfig JSON（會存在本機瀏覽器）。詳見
-              FIREBASE_SETUP.md
-            </p>
-            <textarea
-              id="fb-json"
-              placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'
-            ></textarea>
-            <div class="row">
-              <button class="pri" id="fb-save">儲存設定</button>
-              <button id="cfg-x">關閉</button>
-            </div>
-            <p class="mut" id="cfg-msg"></p>
-          </div>
+          <p class="mut" id="auth-msg"></p>
         </div>
       </div>
 
@@ -1753,6 +1735,7 @@
       });
       redraw();
       /* ===== v6: Firebase 雲端同步 ===== */
+      // 把 Firebase Console「註冊應用程式」後顯示的 firebaseConfig 貼在這裡
       const FIREBASE_CONFIG = {
         apiKey: "YOUR_API_KEY",
         authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -1777,18 +1760,12 @@
         tm = {},
         cfgU = store.get("tarot-cfgu", 0),
         syncing = false;
-      function loadFbConfig() {
-        try {
-          const o = JSON.parse(
-            localStorage.getItem("tarot-fb-config") || "null",
-          );
-          if (o && o.apiKey) return o;
-        } catch (e) {}
-        return FIREBASE_CONFIG;
-      }
       function fbConfigured() {
-        const c = loadFbConfig();
-        return !!(c && c.apiKey && !String(c.apiKey).startsWith("YOUR_"));
+        return !!(
+          FIREBASE_CONFIG &&
+          FIREBASE_CONFIG.apiKey &&
+          !String(FIREBASE_CONFIG.apiKey).startsWith("YOUR_")
+        );
       }
       function imgPath(key) {
         const i = String(key).indexOf(":");
@@ -2024,56 +2001,26 @@
         }
         $("#auth-out").classList.toggle("hide", !fbUser);
       }
-      function openModal(mode) {
+      function openModal() {
         $("#auth-modal").classList.add("on");
-        const isCfg = mode === "cfg";
-        $("#auth-form").classList.toggle("hide", isCfg);
-        $("#cfg-form").classList.toggle("hide", !isCfg);
-        $("#auth-title").textContent = isCfg ? "Firebase 設定" : "登入雲端同步";
         $("#auth-msg").textContent = "";
-        $("#cfg-msg").textContent = "";
-        if (isCfg) {
-          try {
-            $("#fb-json").value = JSON.stringify(loadFbConfig(), null, 2);
-          } catch (e) {
-            $("#fb-json").value = "";
-          }
-        }
         updateAuthUI();
       }
       function closeModal() {
         $("#auth-modal").classList.remove("on");
       }
-      $("#auth-btn").onclick = () => openModal("auth");
-      $("#fb-cfg").onclick = () => openModal("cfg");
+      $("#auth-btn").onclick = () => openModal();
       $("#auth-x").onclick = closeModal;
-      $("#cfg-x").onclick = closeModal;
       $("#auth-modal").onclick = (e) => {
         if (e.target.id === "auth-modal") closeModal();
-      };
-      $("#fb-save").onclick = () => {
-        try {
-          let raw = $("#fb-json").value.trim();
-          if (raw.startsWith("const ") || raw.includes("firebaseConfig")) {
-            const m = raw.match(/\{[\s\S]*\}/);
-            if (!m) throw new Error("找不到 JSON 物件");
-            raw = m[0];
-          }
-          const o = JSON.parse(raw);
-          if (!o.apiKey || !o.projectId) throw new Error("缺少 apiKey／projectId");
-          localStorage.setItem("tarot-fb-config", JSON.stringify(o));
-          $("#cfg-msg").textContent = "已儲存，重新整理頁面後生效";
-          setTimeout(() => location.reload(), 600);
-        } catch (e) {
-          $("#cfg-msg").textContent = "設定無效：" + (e.message || e);
-        }
       };
       async function doAuth(signup) {
         const email = $("#auth-email").value.trim(),
           pass = $("#auth-pass").value;
         $("#auth-msg").textContent = "";
         if (!fbConfigured()) {
-          $("#auth-msg").textContent = "請先按「雲端設定」填入 Firebase config";
+          $("#auth-msg").textContent =
+            "請先在 index.html 填入 FIREBASE_CONFIG";
           return;
         }
         if (!fbAuth) {
@@ -2111,8 +2058,7 @@
           return;
         }
         try {
-          const cfg = loadFbConfig();
-          if (!firebase.apps.length) firebase.initializeApp(cfg);
+          if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
           fbAuth = firebase.auth();
           fbDb = firebase.firestore();
           fbSt = firebase.storage();

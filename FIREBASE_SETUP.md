@@ -3,28 +3,31 @@
 ## 1. 建立專案
 
 1. 打開 [Firebase Console](https://console.firebase.google.com/)
-2. 新增專案 → 新增 **Web App**
-3. 複製 `firebaseConfig` 物件
+2. 新增專案 → 新增 **Web App**（暱稱隨意；**不要勾** Firebase 託管）
+3. 註冊後複製畫面上的 `firebaseConfig`
 
-## 2. 啟用服務
+## 2. 寫進程式
 
-- **Authentication** → Sign-in method → 啟用 **Email/Password**
-- **Firestore Database** → 建立資料庫（可先選測試模式，再改規則）
-- **Storage** → 建立（同樣先測試模式再改規則）
+編輯 `index.html`，找到：
 
-## 3. 授權網域
+```js
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  ...
+};
+```
 
-Authentication → Settings → Authorized domains 加入：
+把值換成你複製的那組，存檔後 `git push`。
 
-- `hen0729.github.io`
-- `localhost`（本機測試）
+## 3. 啟用服務
 
-## 4. 填入設定
+- **Authentication** → 登入方式 → 啟用 **Email/Password**
+- **Firestore** → 建立資料庫
+- **Storage** → 建立
 
-任選一種：
+## 4. 授權網域
 
-**A.** 編輯 `index.html` 裡的 `FIREBASE_CONFIG`  
-**B.** 網站右上角「雲端設定」貼上整段 JSON（存在本機，不進 Git）
+Authentication → Settings → Authorized domains 加入：`hen0729.github.io`
 
 ## 5. 安全規則（建議）
 
@@ -56,7 +59,4 @@ service firebase.storage {
 
 ## 6. 使用
 
-1. 打開 https://hen0729.github.io/tarot/
-2. 註冊一組 Email／密碼並登入
-3. 上傳牌面、抽牌紀錄會同步到雲端
-4. 換裝置用同一帳號登入即可拉取
+打開 https://hen0729.github.io/tarot/ → **登入雲端** → 註冊／登入。
