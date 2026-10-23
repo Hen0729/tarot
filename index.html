@@ -625,10 +625,8 @@
         if ($("#cd"))
           $("#cd").onclick = function () {
             if (this.dataset.s) {
-              remImg(id).then(() => {
-                redraw();
-                show(...cur);
-              });
+              remImg(id);
+              refreshView(id, rev);
             } else {
               this.dataset.s = 1;
               this.textContent = "再按一次確認刪除";
@@ -958,6 +956,10 @@
         if (drawn.length) renderDraw();
         if (!$("#v-hist").classList.contains("hide")) renderList();
       }
+      function refreshView(id, rev) {
+        redraw();
+        if (id != null && !editing) show(id, rev);
+      }
       const shrink = (f) =>
         new Promise((ok, no) => {
           const u = URL.createObjectURL(f),
@@ -1107,15 +1109,23 @@
       };
       $("#f1").onchange = async (e) => {
         const f = e.target.files[0],
-          id = imgTarget;
-        if (f && id != null) {
-          try {
-            await addImg(id, f);
-          } catch (x) {}
-          redraw();
-          show(id, cur[0] === id ? cur[1] : undefined);
-        }
+          id = imgTarget,
+          rev = cur[0] === id ? cur[1] : undefined;
         e.target.value = "";
+        if (!f || id == null) return;
+        say("處理圖片中…");
+        try {
+          await addImg(id, f);
+        } catch (x) {
+          say("圖片處理失敗");
+          return;
+        }
+        refreshView(id, rev);
+        // 部分手機瀏覽器要再排一次才會重繪
+        requestAnimationFrame(() => refreshView(id, rev));
+        setTimeout(() => refreshView(id, rev), 30);
+        if (fbUser) say(tnow());
+        else say("本機已更新");
       };
       idbOp((s) => ({ k: s.getAllKeys(), v: s.getAll() })).then((r) => {
         if (r && r.k.result) {
@@ -1962,7 +1972,7 @@
           await pullImages();
           fillSp();
           fillDeckSel();
-          redraw();
+          refreshView(cur[0], cur[1]);
           if (!$("#v-hist").classList.contains("hide")) renderList();
           say(tnow());
         } catch (e) {
