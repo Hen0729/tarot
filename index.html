@@ -438,10 +438,6 @@
         margin-top: 6px;
         font-size: 12px;
       }
-      #auth-bar {
-        margin-left: auto;
-        align-items: center;
-      }
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -455,9 +451,6 @@
         <button id="t-draw" class="on">抽牌</button>
         <button id="t-hist">我的紀錄</button>
         <button id="t-deck">78 張牌庫</button>
-        <span id="auth-bar" class="row" style="margin: 0">
-          <span class="mut" id="sync"></span>
-        </span>
       </nav>
 
       <section id="v-draw">
@@ -1703,9 +1696,10 @@
         password: "tarot123",
       };
       const sset = store.set.bind(store),
-        tnow = () => "☁️ 已同步 " + new Date().toLocaleTimeString("zh-TW"),
+        tnow = () => "",
         jstr = (h) => JSON.stringify({ ...h, u: 0 }),
-        fbErr = (e) => e && (e.code || e.message || String(e));
+        fbErr = (e) => e && (e.code || e.message || String(e)),
+        say = () => {};
       let fbAuth = null,
         fbDb = null,
         fbSt = null,
@@ -1713,23 +1707,7 @@
         lastS = {},
         tm = {},
         cfgU = store.get("tarot-cfgu", 0),
-        syncing = false,
-        sayTimer = null;
-      // 狀態列：進行中保留；成功／錯誤顯示後自動消失，避免一直卡在導覽列
-      const say = (m, opt) => {
-        const el = $("#sync");
-        if (!el) return;
-        el.textContent = m || "";
-        clearTimeout(sayTimer);
-        if (!m || (opt && opt.sticky)) return;
-        const progress = /中…$|檢查雲端|處理圖片/.test(m);
-        if (progress) return;
-        const hold =
-          (opt && opt.hold) || (/失敗|請先|略過/.test(m) ? 8000 : 2800);
-        sayTimer = setTimeout(() => {
-          el.textContent = "";
-        }, hold);
-      };
+        syncing = false;
       function fbConfigured() {
         return !!(
           FIREBASE_CONFIG &&
