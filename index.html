@@ -468,9 +468,7 @@
           <span class="mut">按「洗牌抽牌」開始，點擊牌背翻開。</span>
         </div>
         <div class="row" id="acts" style="justify-content: center"></div>
-        <div class="detail" id="det">
-          <span class="dim">滑過或點擊任一張牌，即可查看牌義。</span>
-        </div>
+        <div class="detail hide" id="det"></div>
       </section>
 
       <section id="v-hist" class="hide">
@@ -660,17 +658,20 @@
       }
       function bindHover(root) {
         root.querySelectorAll(".card:not(.back)").forEach((el) => {
-          const f = () =>
-            show(
-              +el.dataset.id,
-              el.dataset.rev == "1"
-                ? true
-                : el.dataset.rev == "0" && el.closest("#slots,#list")
-                  ? false
-                  : undefined,
-            );
-          el.onmouseenter = f;
-          el.onclick = f;
+          const id = +el.dataset.id;
+          const rev =
+            el.dataset.rev == "1"
+              ? true
+              : el.dataset.rev == "0" && el.closest("#slots,#list")
+                ? false
+                : undefined;
+          // 滑過只顯示提示，點擊才打開詳情（避免進頁／滑過就自動選牌）
+          el.onmouseenter = () => tipAt(el, id);
+          el.onmouseleave = tipHide;
+          el.onclick = () => {
+            tipHide();
+            show(id, rev);
+          };
         });
       }
       function tipHTML(id) {
@@ -882,14 +883,17 @@
             };
           }
           el.querySelectorAll(".chip").forEach((c) => {
-            const f = () => show(+c.dataset.id, c.dataset.rev == "1");
-            c.onmouseenter = f;
             c.onclick = (e) => {
               if (e.target.classList.contains("x")) {
                 h.cards.splice(+e.target.dataset.k, 1);
                 save();
                 renderList();
-              } else f();
+              } else {
+                // 紀錄頁點牌：切到抽牌頁再顯示詳情
+                tipHide();
+                tab("draw");
+                show(+c.dataset.id, c.dataset.rev == "1");
+              }
             };
           });
         });
@@ -1547,6 +1551,15 @@
             dd.innerHTML = "";
           }
           cur = [null, undefined];
+        }
+        if (t == "draw") {
+          const dd = $("#det");
+          if (dd) {
+            dd.classList.add("hide");
+            dd.innerHTML = "";
+          }
+          cur = [null, undefined];
+          editing = false;
         }
         if (t == "hist") renderList();
         if (t == "sp") {
