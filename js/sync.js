@@ -50,7 +50,9 @@
               { [key]: present ? Date.now() : firebase.firestore.FieldValue.delete() },
               { merge: true },
             );
-        } catch (e) {}
+        } catch (e) {
+          console.error("寫入圖片索引失敗", key, e);
+        }
       }
       let imgQuietUntil = 0;
       async function pushImgCloud(key, dataUrl) {
@@ -104,9 +106,13 @@
       }
       async function dropLocalImg(key) {
         delete IMG[key];
+        delete imgMetaApplied[key];
         idbOp((s) => s.delete(key));
       }
-      async function fetchImgToCache(key, itemRef) {
+      /** 各牌面上次套用的雲端時間戳（更換圖時 URL 常不變，要靠這個判斷） */
+      const imgMetaApplied = {};
+      async function fetchImgToCache(key, itemRef, metaTs) {
+        metaTs = typeof metaTs === "number" ? metaTs : 0;
         try {
           const cur = IMG[key];
           // 本機上傳／data URL：本 session 不換成遠端網址
@@ -122,9 +128,17 @@
             await dropLocalImg(key);
             return { changed: true, key, removed: true };
           }
-          if (IMG[key] === url) return { changed: false, key };
-          IMG[key] = url;
-          idbOp((s) => s.put(url, key));
+          const applied = imgMetaApplied[key] || 0;
+          // 更換牌面時 Storage 路徑／下載網址通常不變，用 meta 時間戳強制刷新
+          if (metaTs && applied >= metaTs) return { changed: false, key };
+          if (!metaTs && (IMG[key] === url || String(IMG[key]).indexOf(url) === 0))
+            return { changed: false, key };
+          const displayUrl = metaTs
+            ? url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + metaTs
+            : url;
+          IMG[key] = displayUrl;
+          imgMetaApplied[key] = metaTs || Date.now();
+          idbOp((s) => s.put(displayUrl, key));
           return { changed: true, key };
         } catch (e) {
           console.error("下載牌面失敗", key, e);
@@ -143,6 +157,7 @@
         };
         if (!fbUser || !fbSt) return empty;
         const keys = new Set();
+        const metaTimes = {};
         let cloudOk = false;
         const changedKeys = [];
         const removedKeys = [];
@@ -152,8 +167,11 @@
             const snap = await root.collection("meta").doc("imgs").get();
             cloudOk = true;
             if (snap.exists) {
-              Object.keys(snap.data() || {}).forEach((k) => {
-                if (k && k.indexOf(":") > 0) keys.add(k);
+              Object.entries(snap.data() || {}).forEach(([k, v]) => {
+                if (k && k.indexOf(":") > 0) {
+                  keys.add(k);
+                  metaTimes[k] = typeof v === "number" ? v : 0;
+                }
               });
             }
           }
@@ -215,6 +233,7 @@
             return fetchImgToCache(
               key,
               fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
+              metaTimes[key] || 0,
             );
           }),
         );

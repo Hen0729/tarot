@@ -745,7 +745,9 @@ const MA =
         // 先完成本機顯示，再背景上傳（上傳大圖時不要擋住出圖）
         await softRefreshView(id, rev, true);
         if (packed) {
-          pushImgCloud(packed.key, packed.dataUrl).catch(() => {});
+          pushImgCloud(packed.key, packed.dataUrl).catch((err) => {
+            console.error("牌面雲端上傳失敗", packed.key, err);
+          });
         }
       };
       idbOp((s) => ({ k: s.getAllKeys(), v: s.getAll() })).then((r) => {
