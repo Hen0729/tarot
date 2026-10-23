@@ -549,14 +549,20 @@ const MA =
             await img.decode();
           } catch (e) {}
       }
-      /** 就地換／插入牌面圖，不 replace 整張卡 DOM */
+      /** 就地換／插入牌面圖：圖先解碼好再進 DOM，避免手機先出現空白再閃出 */
       async function paintCardImg(el, src) {
         if (!el || !src) return;
+        try {
+          await preloadSrc(src);
+        } catch (e) {
+          return;
+        }
         el.classList.add("im");
         let img = el.querySelector("img");
         if (!img) {
           img = document.createElement("img");
           img.alt = "";
+          img.src = src;
           const sym = el.querySelector(".sym");
           if (sym) sym.replaceWith(img);
           else {
@@ -564,8 +570,9 @@ const MA =
             if (z) el.insertBefore(img, z);
             else el.appendChild(img);
           }
+        } else {
+          await swapImgSrc(img, src);
         }
-        await swapImgSrc(img, src);
         img.onerror = () => {
           const card = img.closest(".card");
           if (!card) return;
@@ -628,10 +635,12 @@ const MA =
         if (!img) {
           img = document.createElement("img");
           img.alt = "";
+          img.src = im;
           det.insertBefore(img, det.firstChild);
+        } else {
+          await swapImgSrc(img, im);
         }
         img.classList.toggle("rev", rev === true);
-        await swapImgSrc(img, im);
         const ci = box.querySelector("#ci");
         if (ci) ci.textContent = "更換牌面圖";
         if (!box.querySelector("#cd")) {
