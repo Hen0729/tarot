@@ -60,7 +60,8 @@
           console.error("寫入圖片索引失敗", key, e);
         }
       }
-      let imgQuietUntil = 0;
+      /** 上次看到的 imgs meta（即時同步用，只拉有變的 key） */
+      let lastImgMeta = {};
       async function pushImgCloud(key, dataUrl) {
         if (!fbUser || !fbSt) {
           console.warn("尚未登入雲端，牌面只存在本機", key);
@@ -72,10 +73,9 @@
         await ref.putString(dataUrl, "data_url", {
           contentType: "image/jpeg",
         });
-        // 自家上傳後忽略即時拉取，避免偶發整頁重繪閃爍
         const ts = Date.now();
-        imgQuietUntil = ts + 30000;
         await noteImgCloud(key, true, ts);
+        lastImgMeta[key] = ts;
       }
       async function deleteImgCloud(key) {
         if (!fbUser || !fbSt) return;
@@ -169,6 +169,94 @@
           return { changed: false, key };
         }
       }
+      function ensureDeckForImgKey(key) {
+        const p = imgPath(key);
+        if (!p) return false;
+        if (DECKS.some((d) => d.id === p.did)) return false;
+        DECKS.push({
+          id: p.did,
+          name: p.did === "rws" ? "偉特塔羅" : "雲端牌組",
+        });
+        if (!CU[p.did]) CU[p.did] = {};
+        return true;
+      }
+      function parseImgMeta(data) {
+        const metaTimes = {};
+        const keys = new Set();
+        Object.entries(data || {}).forEach(([k, v]) => {
+          if (!k || k.indexOf(":") < 0) return;
+          keys.add(k);
+          metaTimes[k] = typeof v === "number" ? v : 0;
+        });
+        return { keys, metaTimes };
+      }
+      async function fetchKeysToCache(keyList, metaTimes) {
+        const changedKeys = [];
+        const removedKeys = [];
+        const results = await Promise.all(
+          keyList.map((key) => {
+            const p = imgPath(key);
+            if (!p) return Promise.resolve({ changed: false, key });
+            return fetchImgToCache(
+              key,
+              fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
+              metaTimes[key] || 0,
+            );
+          }),
+        );
+        results.forEach((r) => {
+          if (!r || !r.changed) return;
+          if (r.removed) removedKeys.push(r.key);
+          else changedKeys.push(r.key);
+        });
+        return { changedKeys, removedKeys };
+      }
+      /** 即時同步：只處理 meta 有變／新增／刪除的 key，不 listAll 整庫 */
+      async function pullImagesFromMeta(metaData) {
+        const empty = {
+          changed: false,
+          changedKeys: [],
+          removedKeys: [],
+          decksChanged: false,
+        };
+        if (!fbUser || !fbSt) return empty;
+        const { keys: cloudKeys, metaTimes } = parseImgMeta(metaData);
+        const removedKeys = [];
+        Object.keys(lastImgMeta).forEach((k) => {
+          if (cloudKeys.has(k)) return;
+          if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(k)) return;
+          dropLocalImg(k);
+          removedKeys.push(k);
+        });
+        const toFetch = [...cloudKeys].filter((k) => {
+          const ts = metaTimes[k] || 0;
+          const applied = imgMetaApplied[k] || 0;
+          if (ts > applied) return true;
+          if (!IMG[k]) return true;
+          return false;
+        });
+        let decksChanged = false;
+        toFetch.forEach((key) => {
+          if (ensureDeckForImgKey(key)) decksChanged = true;
+        });
+        if (decksChanged) {
+          sset("tarot-decks", DECKS);
+          sset("tarot-custom", CU);
+          fillDeckSel();
+        }
+        const { changedKeys, removedKeys: rem2 } = await fetchKeysToCache(
+          toFetch,
+          metaTimes,
+        );
+        rem2.forEach((k) => removedKeys.push(k));
+        lastImgMeta = { ...(metaData || {}) };
+        return {
+          changed: !!(changedKeys.length || removedKeys.length || decksChanged),
+          changedKeys,
+          removedKeys,
+          decksChanged,
+        };
+      }
       async function pullImages() {
         const empty = {
           changed: false,
@@ -180,21 +268,17 @@
         const keys = new Set();
         const metaTimes = {};
         let cloudOk = false;
-        const changedKeys = [];
-        const removedKeys = [];
         try {
           const root = userCol();
           if (root) {
             const snap = await root.collection("meta").doc("imgs").get();
             cloudOk = true;
             if (snap.exists) {
-              Object.entries(snap.data() || {}).forEach(([k, v]) => {
-                if (k && k.indexOf(":") > 0) {
-                  keys.add(k);
-                  metaTimes[k] = typeof v === "number" ? v : 0;
-                }
-              });
-            }
+              const parsed = parseImgMeta(snap.data());
+              parsed.keys.forEach((k) => keys.add(k));
+              Object.assign(metaTimes, parsed.metaTimes);
+              lastImgMeta = { ...(snap.data() || {}) };
+            } else lastImgMeta = {};
           }
         } catch (e) {
           console.error("讀取圖片索引失敗", e);
@@ -217,7 +301,7 @@
         } catch (e) {
           console.error("列出 Storage 圖片失敗", e);
         }
-        // 他裝置刪掉的圖：清掉本機快取，避免失效網址把牌格擠爆
+        const removedKeys = [];
         if (cloudOk) {
           Object.keys(IMG).forEach((k) => {
             if (!keys.has(k)) {
@@ -228,41 +312,20 @@
             }
           });
         }
-        // 雲端有圖但本機沒有該牌組時，補上選項以免選不到
         let decksChanged = false;
-        for (const key of keys) {
-          const p = imgPath(key);
-          if (!p) continue;
-          if (!DECKS.some((d) => d.id === p.did)) {
-            DECKS.push({
-              id: p.did,
-              name: p.did === "rws" ? "偉特塔羅" : "雲端牌組",
-            });
-            if (!CU[p.did]) CU[p.did] = {};
-            decksChanged = true;
-          }
-        }
+        keys.forEach((key) => {
+          if (ensureDeckForImgKey(key)) decksChanged = true;
+        });
         if (decksChanged) {
           sset("tarot-decks", DECKS);
           sset("tarot-custom", CU);
           fillDeckSel();
         }
-        const results = await Promise.all(
-          [...keys].map((key) => {
-            const p = imgPath(key);
-            if (!p) return Promise.resolve({ changed: false, key });
-            return fetchImgToCache(
-              key,
-              fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
-              metaTimes[key] || 0,
-            );
-          }),
+        const { changedKeys, removedKeys: rem2 } = await fetchKeysToCache(
+          [...keys],
+          metaTimes,
         );
-        results.forEach((r) => {
-          if (!r || !r.changed) return;
-          if (r.removed) removedKeys.push(r.key);
-          else changedKeys.push(r.key);
-        });
+        rem2.forEach((k) => removedKeys.push(k));
         return {
           changed: !!(changedKeys.length || removedKeys.length || decksChanged),
           changedKeys,
@@ -553,10 +616,13 @@
             liveSkip = true,
             cfgLiveSkip = true,
             liveTimer = null;
-          async function refreshImgsLive() {
+          async function refreshImgsLive(metaData) {
             if (!fbUser || !fbSt || syncing) return;
-            if (Date.now() < imgQuietUntil) return;
-            const result = await pullImages();
+            // 有 meta 快照就只拉變更；否則完整拉（切回分頁／定期補拉）
+            const result =
+              metaData && typeof metaData === "object"
+                ? await pullImagesFromMeta(metaData)
+                : await pullImages();
             if (!result.changed) return;
             // 不要 redraw() 整頁：其他已有圖的牌會一起閃
             await applyImgPullResult(result);
@@ -575,13 +641,15 @@
               .collection("meta")
               .doc("imgs")
               .onSnapshot(
-                () => {
-                  // 第一次是訂閱當下狀態，syncAll 已拉過，略過
+                (snap) => {
+                  const data = snap.exists ? snap.data() || {} : {};
+                  // 第一次是訂閱當下狀態，syncAll 已拉過，只記 meta
                   if (liveSkip) {
                     liveSkip = false;
+                    lastImgMeta = { ...data };
                     return;
                   }
-                  refreshImgsLive();
+                  refreshImgsLive(data);
                 },
                 (e) => console.error("圖片即時同步失敗", e),
               );
@@ -657,7 +725,7 @@
             if (document.hidden || !fbUser || !fbSt || syncing) return;
             pullCfgLive();
             refreshImgsLive();
-          }, 20000);
+          }, 8000);
           try {
             await fbAuth.signInWithEmailAndPassword(
               FIREBASE_AUTH.email,

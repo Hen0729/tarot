@@ -613,7 +613,6 @@ const MA =
         IMG[key] = d;
         pinImg(key);
         const now = Date.now();
-        if (typeof imgQuietUntil !== "undefined") imgQuietUntil = now + 30000;
         // 標記本機剛上傳，避免同步瞬間用舊雲端圖蓋回來
         if (typeof imgMetaApplied !== "undefined") imgMetaApplied[key] = now;
         idbOp((s) => s.put(d, key));
