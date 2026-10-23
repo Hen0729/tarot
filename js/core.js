@@ -604,10 +604,9 @@ const MA =
           } catch (e) {}
         }
         // 縮圖：只動 img，不整卡重繪
-        document.querySelectorAll(`.card[data-id="${id}"]`).forEach((el) => {
-          if (im) paintCardImg(el, im);
-          else clearCardImg(el);
-        });
+        const cards = [...document.querySelectorAll(`.card[data-id="${id}"]`)];
+        if (im) await Promise.all(cards.map((el) => paintCardImg(el, im)));
+        else cards.forEach((el) => clearCardImg(el));
         const box = detBox();
         const open =
           box &&
