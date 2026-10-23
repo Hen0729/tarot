@@ -4,26 +4,12 @@
       const sset = store.set.bind(store),
         jstr = (h) => JSON.stringify({ ...h, u: 0 }),
         fbErr = (e) => e && (e.code || e.message || String(e));
-      let sayTimer = null;
       function tnow() {
-        return "已同步 " + new Date().toLocaleTimeString("zh-TW");
+        return "";
       }
+      // 同步狀態不顯示在畫面上（仍可在 console 看錯誤）
       function say(msg) {
-        if (!msg) return;
-        let el = $("#toast");
-        if (!el) {
-          el = document.createElement("div");
-          el.id = "toast";
-          document.body.appendChild(el);
-        }
-        el.textContent = msg;
-        el.classList.toggle("err", /失敗|錯誤|拒絕|逾時/.test(msg));
-        el.classList.add("on");
-        clearTimeout(sayTimer);
-        sayTimer = setTimeout(
-          () => el.classList.remove("on"),
-          /失敗|錯誤|拒絕|逾時/.test(msg) ? 5200 : 2800,
-        );
+        if (msg && /失敗|錯誤|拒絕|逾時/.test(msg)) console.warn(msg);
       }
       let fbAuth = null,
         fbDb = null,
