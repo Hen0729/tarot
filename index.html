@@ -120,7 +120,10 @@
       }
       .card {
         width: 112px;
+        min-width: 112px;
         height: 184px;
+        box-sizing: border-box;
+        flex-shrink: 0;
         border-radius: 10px;
         border: 2px solid var(--bd);
         background: var(--card);
@@ -133,6 +136,7 @@
         padding: 6px;
         transition: transform 0.2s;
         user-select: none;
+        overflow: hidden;
       }
       .card:hover {
         transform: translateY(-4px);
@@ -213,6 +217,7 @@
       }
       .grid .card {
         width: 84px;
+        min-width: 84px;
         height: 120px;
       }
       .grid .z {
@@ -261,7 +266,9 @@
       }
       .card img {
         width: 100%;
-        flex: 1;
+        max-width: 100%;
+        flex: 1 1 auto;
+        min-width: 0;
         min-height: 0;
         object-fit: contain;
         border-radius: 4px;
@@ -274,7 +281,8 @@
         padding: 4px;
       }
       .card.im .n,
-      .card.im .e {
+      .card.im .e,
+      .card.im .sym {
         display: none;
       }
       .card.im.rev .z {
@@ -284,7 +292,7 @@
         font-size: 12px;
       }
       .grid .card.im {
-        height: 150px;
+        height: 120px;
       }
       .grid .card.im .z {
         font-size: 10px;
@@ -654,7 +662,31 @@
       }
       function face(c, rev, tag, did) {
         const im = getImg(c.id, did);
-        return `<div class="card ${rev ? "rev" : ""}${im ? " im" : ""}" data-id="${c.id}" data-rev="${rev ? 1 : 0}"><span class="n">${c.n}</span>${im ? `<img src="${im}" alt="">` : `<span class="sym">${c.sym}</span>`}<span class="z">${c.z}</span><span class="e">${c.e}</span>${tag ? `<span class="tag">${rev ? "逆位" : "正位"}</span>` : ""}</div>`;
+        return `<div class="card ${rev ? "rev" : ""}${im ? " im" : ""}" data-id="${c.id}" data-rev="${rev ? 1 : 0}"><span class="n">${c.n}</span>${im ? `<img src="${im}" alt="" loading="lazy">` : `<span class="sym">${c.sym}</span>`}<span class="z">${c.z}</span><span class="e">${c.e}</span>${tag ? `<span class="tag">${rev ? "逆位" : "正位"}</span>` : ""}</div>`;
+      }
+      function bindBrokenImgs(root) {
+        (root || document)
+          .querySelectorAll(".card.im img")
+          .forEach((img) => {
+            const fix = () => {
+              const card = img.closest(".card");
+              if (!card) return;
+              const id = +card.dataset.id;
+              const key = ik(id);
+              delete IMG[key];
+              idbOp((s) => s.delete(key));
+              card.classList.remove("im");
+              img.replaceWith(
+                Object.assign(document.createElement("span"), {
+                  className: "sym",
+                  textContent: (D[id] && D[id].sym) || "✦",
+                }),
+              );
+              if (cur[0] === id) show(id, cur[1]);
+            };
+            if (img.complete && img.naturalWidth === 0) fix();
+            else img.onerror = fix;
+          });
       }
       function bindHover(root) {
         root.querySelectorAll(".card:not(.back)").forEach((el) => {
@@ -785,6 +817,7 @@
               }),
           );
         bindHover($("#slots"));
+        bindBrokenImgs($("#slots"));
         $("#acts").innerHTML =
           `<button id="all">全部翻開</button>${drawn.every((d) => d.open) ? '<button class="pri" id="sv">儲存到紀錄</button>' : ""}`;
         $("#all").onclick = () => {
@@ -953,6 +986,7 @@
       function redraw() {
         $("#deck").innerHTML = D.map((c) => face(c, false, false)).join("");
         bindDeck();
+        bindBrokenImgs($("#deck"));
         if (drawn.length) renderDraw();
         if (!$("#v-hist").classList.contains("hide")) renderList();
       }
@@ -1299,6 +1333,7 @@
               }),
           );
         bindHover($("#slots"));
+        bindBrokenImgs($("#slots"));
         $("#acts").innerHTML =
           `<span class="mut">${esc(spName)}</span><button id="all">全部翻開</button><button id="ai">✨ 統整解析</button><button class="pri" id="sv">儲存整個牌陣到紀錄</button>`;
         $("#all").onclick = () => {
@@ -1819,24 +1854,34 @@
           ),
         ]);
       }
+      async function dropLocalImg(key) {
+        delete IMG[key];
+        idbOp((s) => s.delete(key));
+      }
       async function fetchImgToCache(key, itemRef) {
         try {
           // 直接存下載網址給 <img src> 用（各裝置／瀏覽器最穩，避開 CORS／getBlob 限制）
           const url = await itemRef.getDownloadURL();
-          if (!url) return;
+          if (!url) {
+            await dropLocalImg(key);
+            return;
+          }
           IMG[key] = url;
           idbOp((s) => s.put(url, key));
         } catch (e) {
           console.error("下載牌面失敗", key, e);
+          await dropLocalImg(key);
         }
       }
       async function pullImages() {
         if (!fbUser || !fbSt) return;
         const keys = new Set();
+        let cloudOk = false;
         try {
           const root = userCol();
           if (root) {
             const snap = await root.collection("meta").doc("imgs").get();
+            cloudOk = true;
             if (snap.exists) {
               Object.keys(snap.data() || {}).forEach((k) => {
                 if (k && k.indexOf(":") > 0) keys.add(k);
@@ -1852,6 +1897,7 @@
             20000,
             "圖片列表",
           );
+          cloudOk = true;
           for (const pref of listed.prefixes) {
             const did = pref.name;
             const files = await pref.listAll();
@@ -1862,6 +1908,12 @@
           }
         } catch (e) {
           console.error("列出 Storage 圖片失敗", e);
+        }
+        // 他裝置刪掉的圖：清掉本機快取，避免失效網址把牌格擠爆
+        if (cloudOk) {
+          Object.keys(IMG).forEach((k) => {
+            if (!keys.has(k)) dropLocalImg(k);
+          });
         }
         // 雲端有圖但本機沒有該牌組時，補上選項以免選不到
         let decksChanged = false;
