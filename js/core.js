@@ -134,7 +134,7 @@ const MA =
               try {
                 await remImg(id);
               } catch (e) {}
-              refreshView(id, rev);
+              softRefreshView(id, rev);
             } else {
               this.dataset.s = 1;
               this.textContent = "再按一次確認刪除";
@@ -530,6 +530,66 @@ const MA =
         if (drawn.length) renderDraw();
         if (!$("#v-hist").classList.contains("hide")) renderList();
       }
+      /** 只更新某一張牌的縮圖／詳情，避免整頁 redraw 造成閃爍 */
+      function patchCardFaces(id) {
+        if (id == null || !D[id]) return;
+        document.querySelectorAll(`.card[data-id="${id}"]`).forEach((el) => {
+          const root = el.closest("#slots, #list, #deck") || el.parentNode;
+          const rev = el.dataset.rev == "1";
+          const tag = !!el.querySelector(".tag");
+          const inHist = !!(root && root.id === "list");
+          const did = inHist
+            ? (
+                hist.find(
+                  (h) =>
+                    h &&
+                    String(h.id) ===
+                      String(el.closest(".entry")?.dataset?.h),
+                ) || {}
+              ).deck
+            : deckId;
+          const tmp = document.createElement("div");
+          tmp.innerHTML = face(D[id], rev, tag, did || deckId);
+          const neu = tmp.firstElementChild;
+          if (!neu) return;
+          el.replaceWith(neu);
+        });
+        if ($("#deck")) {
+          bindDeck();
+          bindBrokenImgs($("#deck"));
+        }
+        if ($("#slots")) {
+          bindHover($("#slots"));
+          bindBrokenImgs($("#slots"));
+        }
+        if ($("#list")) {
+          bindHover($("#list"));
+          bindBrokenImgs($("#list"));
+        }
+      }
+      function softRefreshView(id, rev) {
+        if (id == null || id === undefined || editing) return;
+        patchCardFaces(id);
+        const box = detBox();
+        const open =
+          box &&
+          !box.classList.contains("hide") &&
+          !box.hidden &&
+          box.style.display !== "none";
+        if (!open) return;
+        const im = getImg(id);
+        const img = box.querySelector(".det img");
+        const hasCd = !!box.querySelector("#cd");
+        // 已有圖：只換 src，不要整塊重繪（重繪 img 會閃）
+        if (im && img && hasCd && cur[0] === id) {
+          if (img.getAttribute("src") !== im) img.src = im;
+          img.classList.toggle("rev", rev === true);
+          const ci = box.querySelector("#ci");
+          if (ci) ci.textContent = "更換牌面圖";
+          return;
+        }
+        show(id, rev);
+      }
       function refreshView(id, rev) {
         redraw();
         // 只有詳情已打開時才更新，避免進牌庫／雲端同步後自動選中一張牌
@@ -704,8 +764,8 @@ const MA =
         } catch (x) {
           return;
         }
-        // 先用本機 data URL 更新畫面（避免上傳後又被遠端網址重繪而閃爍）
-        refreshView(id, rev);
+        // 只更新這一張，不要 redraw 整副牌庫（會閃）
+        softRefreshView(id, rev);
         if (packed) {
           try {
             await pushImgCloud(packed.key, packed.dataUrl);
