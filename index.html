@@ -566,7 +566,7 @@
       const save = () => store.set("tarot-hist", hist);
       let _cuRaw = store.get("tarot-custom", {}),
         editing = false,
-        cur = [0, undefined];
+        cur = [null, undefined];
       let DECKS = store.get("tarot-decks", [{ id: "rws", name: "偉特塔羅" }]);
       if (!Array.isArray(DECKS) || !DECKS.length)
         DECKS = [{ id: "rws", name: "偉特塔羅" }];
@@ -602,6 +602,7 @@
           : $("#det");
       function show(id, rev) {
         if (editing) return;
+        if (id == null || id === undefined || !D[id]) return;
         cur = [id, rev];
         const c = D[id],
           u = getCU(id),
@@ -953,7 +954,10 @@
       }
       function refreshView(id, rev) {
         redraw();
-        if (id != null && !editing) show(id, rev);
+        // 只有詳情已打開時才更新，避免進牌庫／雲端同步後自動選中一張牌
+        if (id == null || editing) return;
+        const box = detBox();
+        if (box && !box.classList.contains("hide")) show(id, rev);
       }
       const shrink = (f) =>
         new Promise((ok, no) => {
@@ -1536,6 +1540,14 @@
           $("#v-" + k).classList.toggle("hide", k != t);
           $("#t-" + k).classList.toggle("on", k == t);
         });
+        if (t == "deck") {
+          const dd = $("#deck-det");
+          if (dd) {
+            dd.classList.add("hide");
+            dd.innerHTML = "";
+          }
+          cur = [null, undefined];
+        }
         if (t == "hist") renderList();
         if (t == "sp") {
           renderCG();
