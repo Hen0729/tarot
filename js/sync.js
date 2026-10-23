@@ -114,31 +114,38 @@
             (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key)) ||
             (typeof cur === "string" && cur.indexOf("data:") === 0)
           )
-            return false;
+            return { changed: false, key };
           const url = await itemRef.getDownloadURL();
           if (!url) {
             if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key))
-              return false;
+              return { changed: false, key };
             await dropLocalImg(key);
-            return true;
+            return { changed: true, key, removed: true };
           }
-          if (IMG[key] === url) return false;
+          if (IMG[key] === url) return { changed: false, key };
           IMG[key] = url;
           idbOp((s) => s.put(url, key));
-          return true;
+          return { changed: true, key };
         } catch (e) {
           console.error("下載牌面失敗", key, e);
           if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key))
-            return false;
+            return { changed: false, key };
           await dropLocalImg(key);
-          return true;
+          return { changed: true, key, removed: true };
         }
       }
       async function pullImages() {
-        if (!fbUser || !fbSt) return false;
+        const empty = {
+          changed: false,
+          changedKeys: [],
+          removedKeys: [],
+          decksChanged: false,
+        };
+        if (!fbUser || !fbSt) return empty;
         const keys = new Set();
         let cloudOk = false;
-        let changed = false;
+        const changedKeys = [];
+        const removedKeys = [];
         try {
           const root = userCol();
           if (root) {
@@ -178,7 +185,7 @@
               if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(k))
                 return;
               dropLocalImg(k);
-              changed = true;
+              removedKeys.push(k);
             }
           });
         }
@@ -194,7 +201,6 @@
             });
             if (!CU[p.did]) CU[p.did] = {};
             decksChanged = true;
-            changed = true;
           }
         }
         if (decksChanged) {
@@ -202,18 +208,45 @@
           sset("tarot-custom", CU);
           fillDeckSel();
         }
-        const flags = await Promise.all(
+        const results = await Promise.all(
           [...keys].map((key) => {
             const p = imgPath(key);
-            if (!p) return Promise.resolve(false);
+            if (!p) return Promise.resolve({ changed: false, key });
             return fetchImgToCache(
               key,
               fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
             );
           }),
         );
-        if (flags.some(Boolean)) changed = true;
-        return changed;
+        results.forEach((r) => {
+          if (!r || !r.changed) return;
+          if (r.removed) removedKeys.push(r.key);
+          else changedKeys.push(r.key);
+        });
+        return {
+          changed: !!(changedKeys.length || removedKeys.length || decksChanged),
+          changedKeys,
+          removedKeys,
+          decksChanged,
+        };
+      }
+      /** 遠端圖有變時只更新那幾張，避免整副牌庫 redraw 讓其他牌也閃 */
+      async function applyImgPullResult(result) {
+        if (!result || !result.changed) return;
+        const idSet = new Set();
+        [...(result.changedKeys || []), ...(result.removedKeys || [])].forEach(
+          (key) => {
+            const p = imgPath(key);
+            if (!p) return;
+            const id = +p.cid;
+            if (!Number.isNaN(id)) idSet.add(id);
+          },
+        );
+        for (const id of idSet) {
+          const rev = cur[0] === id ? cur[1] : undefined;
+          if (typeof softRefreshView === "function")
+            await softRefreshView(id, rev);
+        }
       }
       function userCol() {
         return fbUser && fbDb
@@ -452,10 +485,10 @@
           async function refreshImgsLive() {
             if (!fbUser || !fbSt || syncing) return;
             if (Date.now() < imgQuietUntil) return;
-            const changed = await pullImages();
-            if (!changed) return;
-            redraw();
-            refreshView(cur[0], cur[1]);
+            const result = await pullImages();
+            if (!result.changed) return;
+            // 不要 redraw() 整頁：其他已有圖的牌會一起閃
+            await applyImgPullResult(result);
           }
           function watchCloudImgs() {
             const root = userCol();
