@@ -423,13 +423,16 @@ const MA =
           return img;
         }
       }
-      /** 就地換／插入牌面圖：圖先解碼好再進 DOM */
-      async function paintCardImg(el, src) {
+      /** 就地換／插入牌面圖：圖先解碼好再進 DOM；eager 用於本機 data URL 立刻顯示 */
+      async function paintCardImg(el, src, eager) {
         if (!el || !src) return;
-        try {
-          await preloadSrc(src);
-        } catch (e) {
-          return;
+        const isData = src.indexOf("data:") === 0;
+        if (!eager || !isData) {
+          try {
+            await preloadSrc(src);
+          } catch (e) {
+            return;
+          }
         }
         el.classList.add("im");
         let img = el.querySelector("img");
@@ -445,6 +448,9 @@ const MA =
             if (z) el.insertBefore(img, z);
             else el.appendChild(img);
           }
+        } else if (eager && isData) {
+          // 本機 data URL：直接換，避免多餘等待
+          img.src = src;
         } else {
           img = await swapImgSrc(img, src);
         }
@@ -480,17 +486,19 @@ const MA =
             }),
           );
       }
-      async function softRefreshView(id, rev) {
+      async function softRefreshView(id, rev, eager) {
         if (id == null || id === undefined || editing) return;
         const im = getImg(id);
-        if (im) {
+        const useEager = !!eager && im && im.indexOf("data:") === 0;
+        if (im && !useEager) {
           try {
             await preloadSrc(im);
           } catch (e) {}
         }
         // 縮圖：只動 img，不整卡重繪
         const cards = [...document.querySelectorAll(`.card[data-id="${id}"]`)];
-        if (im) await Promise.all(cards.map((el) => paintCardImg(el, im)));
+        if (im)
+          await Promise.all(cards.map((el) => paintCardImg(el, im, useEager)));
         else cards.forEach((el) => clearCardImg(el));
         const box = detBox();
         const open =
@@ -516,6 +524,9 @@ const MA =
           img.src = im;
           if (rev === true) img.classList.add("rev");
           det.insertBefore(img, det.firstChild);
+        } else if (useEager) {
+          img.classList.toggle("rev", rev === true);
+          img.src = im;
         } else {
           img.classList.toggle("rev", rev === true);
           img = await swapImgSrc(img, im);
@@ -699,18 +710,25 @@ const MA =
         });
       };
       $("#fi").onchange = async (e) => {
+        const packedList = [];
         for (const f of e.target.files) {
           const id = idOf(f.name);
           if (id == null) continue;
           try {
             const packed = await addImg(id, f);
-            if (packed) await pushImgCloud(packed.key, packed.dataUrl);
+            if (packed) packedList.push(packed);
           } catch (x) {
             console.error("批次上傳失敗", f.name, x);
           }
         }
         e.target.value = "";
         redraw();
+        // 畫面先更新完，再背景上傳雲端（避免大圖 putString 卡住介面）
+        for (const packed of packedList) {
+          try {
+            await pushImgCloud(packed.key, packed.dataUrl);
+          } catch (x) {}
+        }
       };
       $("#f1").onchange = async (e) => {
         const f = e.target.files[0],
@@ -724,12 +742,10 @@ const MA =
         } catch (x) {
           return;
         }
-        // 只更新這一張，不要 redraw 整副牌庫（會閃）
-        softRefreshView(id, rev);
+        // 先完成本機顯示，再背景上傳（上傳大圖時不要擋住出圖）
+        await softRefreshView(id, rev, true);
         if (packed) {
-          try {
-            await pushImgCloud(packed.key, packed.dataUrl);
-          } catch (x) {}
+          pushImgCloud(packed.key, packed.dataUrl).catch(() => {});
         }
       };
       idbOp((s) => ({ k: s.getAllKeys(), v: s.getAll() })).then((r) => {
