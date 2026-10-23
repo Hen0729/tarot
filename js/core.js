@@ -37,11 +37,6 @@ const MA =
           });
         }),
       );
-      D.forEach((c) => {
-        const x = c.e.match(
-          /^(Ace|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Page|Knight|Queen|King) of/,
-        );
-      });
       const $ = (s) => document.querySelector(s),
         mem = {};
       const store = {

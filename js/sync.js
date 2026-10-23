@@ -2,10 +2,29 @@
       const FIREBASE_CONFIG = window.TAROT_FIREBASE_CONFIG;
       const FIREBASE_AUTH = window.TAROT_FIREBASE_AUTH;
       const sset = store.set.bind(store),
-        tnow = () => "",
         jstr = (h) => JSON.stringify({ ...h, u: 0 }),
-        fbErr = (e) => e && (e.code || e.message || String(e)),
-        say = () => {};
+        fbErr = (e) => e && (e.code || e.message || String(e));
+      let sayTimer = null;
+      function tnow() {
+        return "已同步 " + new Date().toLocaleTimeString("zh-TW");
+      }
+      function say(msg) {
+        if (!msg) return;
+        let el = $("#toast");
+        if (!el) {
+          el = document.createElement("div");
+          el.id = "toast";
+          document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.classList.toggle("err", /失敗|錯誤|拒絕|逾時/.test(msg));
+        el.classList.add("on");
+        clearTimeout(sayTimer);
+        sayTimer = setTimeout(
+          () => el.classList.remove("on"),
+          /失敗|錯誤|拒絕|逾時/.test(msg) ? 5200 : 2800,
+        );
+      }
       let fbAuth = null,
         fbDb = null,
         fbSt = null,
@@ -492,54 +511,4 @@
           say("雲端初始化失敗：" + fbErr(e));
         }
       })();
-      const rl1 = renderList;
-      renderList = function () {
-        rl1();
-        document.querySelectorAll("#list .entry").forEach((el) => {
-          const h = hist.find((x) => String(x.id) == el.dataset.h),
-            d = el.querySelector(".del");
-          if (!d) return;
-          const n = d.cloneNode(true);
-          d.replaceWith(n);
-          n.textContent = "\u{1F5D1} \u522a\u9664\u6b64\u7d00\u9304";
-          n.onclick = () => {
-            const row = n.parentNode;
-            row.innerHTML =
-              '<span>\u78ba\u5b9a\u8981\u522a\u9664\u9019\u7b46\u7d00\u9304\u55ce\uff1f\u522a\u9664\u5f8c\u7121\u6cd5\u5fa9\u539f\u3002</span><button class="pri yes">\u78ba\u5b9a\u522a\u9664</button><button class="no">\u53d6\u6d88</button>';
-            row.querySelector(".yes").onclick = () => {
-              hist = hist.filter((x) => x !== h);
-              save();
-              renderList();
-            };
-            row.querySelector(".no").onclick = () => renderList();
-          };
-        });
-      };
-      const rl2 = renderList;
-      renderList = function () {
-        rl2();
-        document.querySelectorAll("#list .entry").forEach((el) => {
-          const h = hist.find((x) => String(x.id) == el.dataset.h);
-          el.insertAdjacentHTML(
-            "afterbegin",
-            '<div class="row top" style="margin:0 0 4px;justify-content:flex-end"><button class="del2">\u{1F5D1} \u522a\u9664\u9019\u7b46</button></div>',
-          );
-          const row = el.querySelector(".top"),
-            orig = row.innerHTML;
-          const ask = () => {
-            row.innerHTML =
-              '<span>\u78ba\u5b9a\u8981\u522a\u9664\u9019\u7b46\u7d00\u9304\u55ce\uff1f\u7121\u6cd5\u5fa9\u539f\u3002</span><button class="pri yes">\u78ba\u5b9a\u522a\u9664</button><button class="no">\u53d6\u6d88</button>';
-            row.querySelector(".yes").onclick = () => {
-              hist = hist.filter((x) => x !== h);
-              save();
-              renderList();
-            };
-            row.querySelector(".no").onclick = () => {
-              row.innerHTML = orig;
-              row.querySelector(".del2").onclick = ask;
-            };
-          };
-          row.querySelector(".del2").onclick = ask;
-        });
-      };
       renderList();

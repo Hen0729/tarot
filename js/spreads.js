@@ -235,7 +235,7 @@
  <div class="hs">${hsHTML(h)}</div>
  <details><summary class="mut" style="cursor:pointer">編輯牌面（逐個位置選牌）</summary>${h.cards.map((c, k) => `<div class="row" style="margin:6px 0 0"><span style="min-width:90px">${esc(c.p || "第" + (k + 1) + "張")}</span><select class="pc" data-k="${k}"><option value="">（未選）</option>${D.map((d) => `<option value="${d.id}"${d.id === c.i ? " selected" : ""}>${d.z}</option>`).join("")}</select><label class="mut"><input type="checkbox" class="pr" data-k="${k}" style="padding:0"${c.r ? " checked" : ""}> 逆位</label></div>`).join("")}</details>
  <textarea class="hn" placeholder="我的塔羅筆記…">${esc(h.note)}</textarea>
- <div class="row" style="margin:6px 0 0"><button class="del">刪除此紀錄</button></div></div>`,
+ <div class="row entry-acts" style="margin:6px 0 0"><button class="del">🗑 刪除此紀錄</button></div></div>`,
           )
           .join("");
         bindHover(L);
@@ -270,16 +270,16 @@
                 rf();
               }),
           );
-          const b = el.querySelector(".del");
-          b.onclick = () => {
-            if (b.dataset.s) {
+          const row = el.querySelector(".entry-acts");
+          row.querySelector(".del").onclick = () => {
+            row.innerHTML =
+              '<span>確定要刪除這筆紀錄嗎？刪除後無法復原。</span><button class="pri yes">確定刪除</button><button class="no">取消</button>';
+            row.querySelector(".yes").onclick = () => {
               hist = hist.filter((x) => x !== h);
               save();
               renderList();
-            } else {
-              b.dataset.s = 1;
-              b.textContent = "再按一次確認刪除";
-            }
+            };
+            row.querySelector(".no").onclick = () => renderList();
           };
         });
       }

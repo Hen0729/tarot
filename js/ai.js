@@ -117,7 +117,8 @@ const cardsOf = (a) =>
         rl0();
         document.querySelectorAll("#list .entry").forEach((el) => {
           const h = hist.find((x) => x.id == el.dataset.h),
-            row = el.querySelector(".del").parentNode;
+            row = el.querySelector(".entry-acts") || el.querySelector(".del")?.parentNode;
+          if (!row) return;
           row.insertAdjacentHTML(
             "afterbegin",
             `<button class="aib">✨ ${h.ai ? "重新" : ""}統整解析</button>`,
