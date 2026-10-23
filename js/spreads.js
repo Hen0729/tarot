@@ -186,7 +186,19 @@
         pos = s[1];
         curLay = layOf(k);
         drawAI = "";
-        $("#aibox").classList.add("hide");
+        editing = false;
+        cur = [null, undefined];
+        tipHide();
+        const ai = $("#aibox");
+        if (ai) {
+          ai.classList.add("hide");
+          ai.innerHTML = "";
+        }
+        const det = $("#det");
+        if (det) {
+          det.classList.add("hide");
+          det.innerHTML = "";
+        }
         drawn = a
           .slice(0, pos.length)
           .map((id) => ({
