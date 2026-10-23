@@ -1748,11 +1748,16 @@
         } catch (e) {}
       }
       async function pushImgCloud(key, dataUrl) {
-        if (!fbUser || !fbSt) return;
+        if (!fbUser || !fbSt) {
+          console.warn("尚未登入雲端，牌面只存在本機", key);
+          return;
+        }
         const p = imgPath(key);
         if (!p) return;
         const ref = fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`);
-        await ref.putString(dataUrl, "data_url");
+        await ref.putString(dataUrl, "data_url", {
+          contentType: "image/jpeg",
+        });
         await noteImgCloud(key, true);
       }
       async function deleteImgCloud(key) {
@@ -1789,31 +1794,13 @@
           ),
         ]);
       }
-      async function blobToDataUrl(blob) {
-        return new Promise((ok, no) => {
-          const r = new FileReader();
-          r.onload = () => ok(r.result);
-          r.onerror = no;
-          r.readAsDataURL(blob);
-        });
-      }
       async function fetchImgToCache(key, itemRef) {
         try {
-          let blob;
-          // 優先用 SDK（避開 GitHub Pages → Storage 的 CORS）
-          if (typeof itemRef.getBlob === "function") {
-            blob = await itemRef.getBlob();
-          } else if (typeof itemRef.getBytes === "function") {
-            blob = new Blob([await itemRef.getBytes()], {
-              type: "image/jpeg",
-            });
-          } else {
-            const url = await itemRef.getDownloadURL();
-            blob = await (await fetch(url)).blob();
-          }
-          const dataUrl = await blobToDataUrl(blob);
-          IMG[key] = dataUrl;
-          idbOp((s) => s.put(dataUrl, key));
+          // 直接存下載網址給 <img src> 用（各裝置／瀏覽器最穩，避開 CORS／getBlob 限制）
+          const url = await itemRef.getDownloadURL();
+          if (!url) return;
+          IMG[key] = url;
+          idbOp((s) => s.put(url, key));
         } catch (e) {
           console.error("下載牌面失敗", key, e);
         }
@@ -1826,14 +1813,18 @@
           if (root) {
             const snap = await root.collection("meta").doc("imgs").get();
             if (snap.exists) {
-              Object.keys(snap.data() || {}).forEach((k) => keys.add(k));
+              Object.keys(snap.data() || {}).forEach((k) => {
+                if (k && k.indexOf(":") > 0) keys.add(k);
+              });
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error("讀取圖片索引失敗", e);
+        }
         try {
           const listed = await withTimeout(
             fbSt.ref(`users/${fbUser.uid}`).listAll(),
-            15000,
+            20000,
             "圖片列表",
           );
           for (const pref of listed.prefixes) {
@@ -1844,15 +1835,38 @@
               keys.add(did + ":" + cid);
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error("列出 Storage 圖片失敗", e);
+        }
+        // 雲端有圖但本機沒有該牌組時，補上選項以免選不到
+        let decksChanged = false;
         for (const key of keys) {
           const p = imgPath(key);
           if (!p) continue;
-          await fetchImgToCache(
-            key,
-            fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
-          );
+          if (!DECKS.some((d) => d.id === p.did)) {
+            DECKS.push({
+              id: p.did,
+              name: p.did === "rws" ? "偉特塔羅" : "雲端牌組",
+            });
+            if (!CU[p.did]) CU[p.did] = {};
+            decksChanged = true;
+          }
         }
+        if (decksChanged) {
+          sset("tarot-decks", DECKS);
+          sset("tarot-custom", CU);
+          fillDeckSel();
+        }
+        await Promise.all(
+          [...keys].map((key) => {
+            const p = imgPath(key);
+            if (!p) return Promise.resolve();
+            return fetchImgToCache(
+              key,
+              fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
+            );
+          }),
+        );
       }
       function userCol() {
         return fbUser && fbDb
@@ -2082,6 +2096,14 @@
               }
               await syncAll();
             }
+          });
+          // 切回分頁時再拉一次圖（電腦傳完、手機不用殺 App）
+          document.addEventListener("visibilitychange", () => {
+            if (document.hidden || !fbUser || !fbSt || syncing) return;
+            pullImages().then(() => {
+              redraw();
+              refreshView(cur[0], cur[1]);
+            });
           });
           try {
             await fbAuth.signInWithEmailAndPassword(
