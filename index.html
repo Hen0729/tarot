@@ -438,7 +438,51 @@
         margin-top: 6px;
         font-size: 12px;
       }
+      #auth-bar {
+        margin-left: auto;
+        align-items: center;
+      }
+      #auth-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: color-mix(in srgb, var(--fg) 45%, transparent);
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      #auth-modal.on {
+        display: flex;
+      }
+      #auth-modal .box {
+        background: var(--card);
+        border: 1px solid var(--bd);
+        border-radius: 12px;
+        padding: 16px;
+        width: min(400px, 100%);
+        max-height: 90vh;
+        overflow: auto;
+      }
+      #auth-modal .box h3 {
+        margin: 0 0 10px;
+        color: var(--acc);
+      }
+      #auth-modal .box input {
+        width: 100%;
+        margin: 4px 0 10px;
+      }
+      #auth-modal textarea {
+        width: 100%;
+        min-height: 110px;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 12px;
+      }
     </style>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
   </head>
   <body>
     <main>
@@ -447,7 +491,50 @@
         <button id="t-draw" class="on">抽牌</button>
         <button id="t-hist">我的紀錄</button>
         <button id="t-deck">78 張牌庫</button>
+        <span id="auth-bar" class="row" style="margin: 0">
+          <span class="mut" id="sync">本機儲存</span>
+          <button id="syncb" class="hide">立即同步</button>
+          <button id="auth-btn">登入雲端</button>
+          <button id="fb-cfg">雲端設定</button>
+        </span>
       </nav>
+      <div id="auth-modal">
+        <div class="box">
+          <h3 id="auth-title">登入雲端同步</h3>
+          <div id="auth-form">
+            <label class="mut">Email</label>
+            <input id="auth-email" type="email" autocomplete="username" />
+            <label class="mut">密碼（至少 6 碼）</label>
+            <input
+              id="auth-pass"
+              type="password"
+              autocomplete="current-password"
+            />
+            <div class="row">
+              <button class="pri" id="auth-in">登入</button>
+              <button id="auth-up">註冊</button>
+              <button id="auth-out" class="hide">登出</button>
+              <button id="auth-x">關閉</button>
+            </div>
+            <p class="mut" id="auth-msg"></p>
+          </div>
+          <div id="cfg-form" class="hide">
+            <p class="mut">
+              貼上 Firebase Console 的 firebaseConfig JSON（會存在本機瀏覽器）。詳見
+              FIREBASE_SETUP.md
+            </p>
+            <textarea
+              id="fb-json"
+              placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'
+            ></textarea>
+            <div class="row">
+              <button class="pri" id="fb-save">儲存設定</button>
+              <button id="cfg-x">關閉</button>
+            </div>
+            <p class="mut" id="cfg-msg"></p>
+          </div>
+        </div>
+      </div>
 
       <section id="v-draw">
         <div class="row">
@@ -614,10 +701,10 @@
         if ($("#cd"))
           $("#cd").onclick = function () {
             if (this.dataset.s) {
-              delete IMG[ik(id)];
-              idbOp((s) => s.delete(ik(id)));
-              redraw();
-              show(...cur);
+              remImg(id).then(() => {
+                redraw();
+                show(...cur);
+              });
             } else {
               this.dataset.s = 1;
               this.textContent = "再按一次確認刪除";
@@ -989,6 +1076,22 @@
           key = ik(id);
         IMG[key] = d;
         idbOp((s) => s.put(d, key));
+        await pushImgCloud(key, d);
+      }
+      async function remImg(id) {
+        const key = ik(id);
+        delete IMG[key];
+        idbOp((s) => s.delete(key));
+        await deleteImgCloud(key);
+      }
+      async function remDeckImgs(did) {
+        Object.keys(IMG)
+          .filter((k) => k.startsWith(did + ":"))
+          .forEach((k) => {
+            delete IMG[k];
+            idbOp((s) => s.delete(k));
+          });
+        await deleteDeckCloud(did);
       }
       function fillDeckSel() {
         const o = DECKS.map(
@@ -1058,17 +1161,13 @@
         this.dataset.s = "";
         this.textContent = "刪除類別";
         const gone = deckId;
-        Object.keys(IMG)
-          .filter((k) => k.startsWith(gone + ":"))
-          .forEach((k) => {
-            delete IMG[k];
-            idbOp((s) => s.delete(k));
-          });
-        delete CU[gone];
-        store.set("tarot-custom", CU);
-        DECKS = DECKS.filter((d) => d.id !== gone);
-        saveDecks();
-        setDeck(DECKS[0].id);
+        remDeckImgs(gone).then(() => {
+          delete CU[gone];
+          store.set("tarot-custom", CU);
+          DECKS = DECKS.filter((d) => d.id !== gone);
+          saveDecks();
+          setDeck(DECKS[0].id);
+        });
       };
       $("#fi").onchange = async (e) => {
         for (const f of e.target.files) {
@@ -1646,35 +1745,136 @@
             analyze(h, el.querySelector(".aibx"), save);
         });
       };
-      /* ===== v5: 花色圖示、雲端同步 ===== */
+      /* ===== v5: 花色圖示 ===== */
       SU[2][2] = "💨";
       SU[3][2] = "🪨";
       D.forEach((c) => {
         if (c.id >= 22) c.sym = SU[Math.floor((c.id - 22) / 14)][2];
       });
       redraw();
-      $("nav").insertAdjacentHTML(
-        "beforeend",
-        '<span class="mut" id="sync" style="align-self:center">本機儲存</span><button id="syncb" class="hide">立即同步</button>',
-      );
+      /* ===== v6: Firebase 雲端同步 ===== */
+      const FIREBASE_CONFIG = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        projectId: "YOUR_PROJECT",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID",
+      };
       const sset = store.set.bind(store),
-        say = (m) => ($("#sync").textContent = m),
+        say = (m) => {
+          const el = $("#sync");
+          if (el) el.textContent = m;
+        },
         tnow = () => "☁️ 已同步 " + new Date().toLocaleTimeString("zh-TW"),
-        jstr = (h) => JSON.stringify({ ...h, u: 0 });
-      let col = null,
+        jstr = (h) => JSON.stringify({ ...h, u: 0 }),
+        fbErr = (e) => e && (e.code || e.message || String(e));
+      let fbAuth = null,
+        fbDb = null,
+        fbSt = null,
+        fbUser = null,
         lastS = {},
         tm = {},
-        cfgU = store.get("tarot-cfgu", 0);
-      async function pushHist() {
-        if (!col) return;
+        cfgU = store.get("tarot-cfgu", 0),
+        syncing = false;
+      function loadFbConfig() {
         try {
+          const o = JSON.parse(
+            localStorage.getItem("tarot-fb-config") || "null",
+          );
+          if (o && o.apiKey) return o;
+        } catch (e) {}
+        return FIREBASE_CONFIG;
+      }
+      function fbConfigured() {
+        const c = loadFbConfig();
+        return !!(c && c.apiKey && !String(c.apiKey).startsWith("YOUR_"));
+      }
+      function imgPath(key) {
+        const i = String(key).indexOf(":");
+        if (i < 0) return null;
+        return {
+          did: key.slice(0, i),
+          cid: key.slice(i + 1),
+        };
+      }
+      async function pushImgCloud(key, dataUrl) {
+        if (!fbUser || !fbSt) return;
+        const p = imgPath(key);
+        if (!p) return;
+        try {
+          await fbSt
+            .ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`)
+            .putString(dataUrl, "data_url");
+          say(tnow());
+        } catch (e) {
+          say("圖片上傳失敗：" + fbErr(e));
+        }
+      }
+      async function deleteImgCloud(key) {
+        if (!fbUser || !fbSt) return;
+        const p = imgPath(key);
+        if (!p) return;
+        try {
+          await fbSt
+            .ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`)
+            .delete();
+        } catch (e) {
+          if (e && e.code !== "storage/object-not-found")
+            say("圖片刪除失敗：" + fbErr(e));
+        }
+      }
+      async function deleteDeckCloud(did) {
+        if (!fbUser || !fbSt) return;
+        try {
+          const list = await fbSt.ref(`users/${fbUser.uid}/${did}`).listAll();
+          await Promise.all(list.items.map((it) => it.delete()));
+        } catch (e) {
+          if (e && e.code !== "storage/object-not-found")
+            say("牌組圖刪除失敗：" + fbErr(e));
+        }
+      }
+      async function pullImages() {
+        if (!fbUser || !fbSt) return;
+        const root = await fbSt.ref(`users/${fbUser.uid}`).listAll();
+        for (const pref of root.prefixes) {
+          const did = pref.name;
+          const files = await pref.listAll();
+          for (const item of files.items) {
+            const cid = item.name.replace(/\.jpe?g$/i, "");
+            const key = did + ":" + cid;
+            try {
+              const url = await item.getDownloadURL();
+              const blob = await (await fetch(url)).blob();
+              const dataUrl = await new Promise((ok, no) => {
+                const r = new FileReader();
+                r.onload = () => ok(r.result);
+                r.onerror = no;
+                r.readAsDataURL(blob);
+              });
+              IMG[key] = dataUrl;
+              idbOp((s) => s.put(dataUrl, key));
+            } catch (e) {}
+          }
+        }
+      }
+      function userCol() {
+        return fbUser && fbDb
+          ? fbDb.collection("users").doc(fbUser.uid)
+          : null;
+      }
+      async function pushHist() {
+        const root = userCol();
+        if (!root || syncing) return;
+        try {
+          const col = root.collection("hist");
           const seen = new Set();
           for (const h of hist) {
             seen.add(String(h.id));
             const c = jstr(h);
             if (lastS[h.id] !== c) {
               h.u = Date.now();
-              await col.doc("h" + h.id).set({ j: JSON.stringify(h) });
+              await col.doc("h" + h.id).set({ j: JSON.stringify(h), u: h.u });
               lastS[h.id] = c;
             }
           }
@@ -1687,13 +1887,14 @@
           sset("tarot-known", Object.keys(lastS));
           say(tnow());
         } catch (e) {
-          say("同步失敗：" + (e.code || e.message || "error"));
+          say("同步失敗：" + fbErr(e));
         }
       }
       async function pushCfg() {
-        if (!col) return;
+        const root = userCol();
+        if (!root || syncing) return;
         try {
-          await col.doc("cfg").set({
+          await root.collection("meta").doc("cfg").set({
             cu: JSON.stringify(CU),
             cs: JSON.stringify(CS),
             decks: JSON.stringify(DECKS),
@@ -1702,7 +1903,7 @@
           });
           say(tnow());
         } catch (e) {
-          say("同步失敗：" + (e.code || e.message || "error"));
+          say("同步失敗：" + fbErr(e));
         }
       }
       const later = (k, f) => {
@@ -1711,6 +1912,7 @@
       };
       store.set = (k, v) => {
         sset(k, v);
+        if (!fbUser) return;
         if (k == "tarot-hist") later("h", pushHist);
         else if (
           k == "tarot-custom" ||
@@ -1724,22 +1926,20 @@
         }
       };
       async function syncAll() {
-        if (!col) return;
+        const root = userCol();
+        if (!root) return;
         say("同步中…");
+        syncing = true;
         try {
-          const snap = await col.get(),
-            cloud = {};
-          let cfg = null;
-          snap.docs.forEach((d) => {
+          const cloud = {};
+          const snap = await root.collection("hist").get();
+          snap.forEach((d) => {
             const x = d.data();
-            if (!x) return;
-            if (d.id == "cfg") cfg = x;
-            else if (x.j && /^h\d+$/.test(d.id)) {
-              try {
-                const h = JSON.parse(x.j);
-                if (h && h.id && Array.isArray(h.cards)) cloud[h.id] = h;
-              } catch (e) {}
-            }
+            if (!x || !x.j) return;
+            try {
+              const h = JSON.parse(x.j);
+              if (h && h.id && Array.isArray(h.cards)) cloud[h.id] = h;
+            } catch (e) {}
           });
           hist = hist.filter((h) => h && h.id && Array.isArray(h.cards));
           const known = store.get("tarot-known", []).map(String),
@@ -1758,15 +1958,20 @@
           hist = out;
           lastS = {};
           Object.entries(cloud).forEach(([id, c]) => (lastS[id] = jstr(c)));
+          let cfg = null;
+          try {
+            const cfgSnap = await root.collection("meta").doc("cfg").get();
+            if (cfgSnap.exists) cfg = cfgSnap.data();
+          } catch (e) {}
           if (cfg && (cfg.u || 0) > cfgU) {
             try {
-              const raw = JSON.parse(cfg.cu);
+              const raw = JSON.parse(cfg.cu || "{}");
               const keys = Object.keys(raw || {});
               CU =
                 keys.length && keys.every((k) => /^\d+$/.test(k))
                   ? { rws: raw }
                   : raw || {};
-              CS = JSON.parse(cfg.cs);
+              CS = JSON.parse(cfg.cs || "{}");
               if (cfg.decks) {
                 try {
                   const ds = JSON.parse(cfg.decks);
@@ -1785,35 +1990,148 @@
               sset("tarot-deck-id", deckId);
               sset("tarot-cfgu", cfgU);
             } catch (e) {}
-          } else if (!cfg || cfgU > (cfg.u || 0)) await pushCfg();
+          } else if (!cfg || cfgU > (cfg.u || 0)) {
+            syncing = false;
+            await pushCfg();
+            syncing = true;
+          }
+          syncing = false;
           await pushHist();
+          say("同步圖片中…");
+          await pullImages();
           fillSp();
           fillDeckSel();
           redraw();
+          if (!$("#v-hist").classList.contains("hide")) renderList();
+          say(tnow());
         } catch (e) {
-          say("同步失敗：" + (e.code || e.message || "error"));
+          say("同步失敗：" + fbErr(e));
+        } finally {
+          syncing = false;
         }
       }
+      function updateAuthUI() {
+        const btn = $("#auth-btn"),
+          sb = $("#syncb");
+        if (fbUser) {
+          btn.textContent = "帳號";
+          sb.classList.remove("hide");
+          say("已登入 · " + (fbUser.email || "雲端"));
+        } else {
+          btn.textContent = "登入雲端";
+          sb.classList.add("hide");
+          say(fbConfigured() ? "本機儲存（未登入）" : "本機儲存（未設定雲端）");
+        }
+        $("#auth-out").classList.toggle("hide", !fbUser);
+      }
+      function openModal(mode) {
+        $("#auth-modal").classList.add("on");
+        const isCfg = mode === "cfg";
+        $("#auth-form").classList.toggle("hide", isCfg);
+        $("#cfg-form").classList.toggle("hide", !isCfg);
+        $("#auth-title").textContent = isCfg ? "Firebase 設定" : "登入雲端同步";
+        $("#auth-msg").textContent = "";
+        $("#cfg-msg").textContent = "";
+        if (isCfg) {
+          try {
+            $("#fb-json").value = JSON.stringify(loadFbConfig(), null, 2);
+          } catch (e) {
+            $("#fb-json").value = "";
+          }
+        }
+        updateAuthUI();
+      }
+      function closeModal() {
+        $("#auth-modal").classList.remove("on");
+      }
+      $("#auth-btn").onclick = () => openModal("auth");
+      $("#fb-cfg").onclick = () => openModal("cfg");
+      $("#auth-x").onclick = closeModal;
+      $("#cfg-x").onclick = closeModal;
+      $("#auth-modal").onclick = (e) => {
+        if (e.target.id === "auth-modal") closeModal();
+      };
+      $("#fb-save").onclick = () => {
+        try {
+          let raw = $("#fb-json").value.trim();
+          if (raw.startsWith("const ") || raw.includes("firebaseConfig")) {
+            const m = raw.match(/\{[\s\S]*\}/);
+            if (!m) throw new Error("找不到 JSON 物件");
+            raw = m[0];
+          }
+          const o = JSON.parse(raw);
+          if (!o.apiKey || !o.projectId) throw new Error("缺少 apiKey／projectId");
+          localStorage.setItem("tarot-fb-config", JSON.stringify(o));
+          $("#cfg-msg").textContent = "已儲存，重新整理頁面後生效";
+          setTimeout(() => location.reload(), 600);
+        } catch (e) {
+          $("#cfg-msg").textContent = "設定無效：" + (e.message || e);
+        }
+      };
+      async function doAuth(signup) {
+        const email = $("#auth-email").value.trim(),
+          pass = $("#auth-pass").value;
+        $("#auth-msg").textContent = "";
+        if (!fbConfigured()) {
+          $("#auth-msg").textContent = "請先按「雲端設定」填入 Firebase config";
+          return;
+        }
+        if (!fbAuth) {
+          $("#auth-msg").textContent = "Firebase 尚未初始化";
+          return;
+        }
+        try {
+          if (signup) await fbAuth.createUserWithEmailAndPassword(email, pass);
+          else await fbAuth.signInWithEmailAndPassword(email, pass);
+          closeModal();
+        } catch (e) {
+          $("#auth-msg").textContent = fbErr(e);
+        }
+      }
+      $("#auth-in").onclick = () => doAuth(false);
+      $("#auth-up").onclick = () => doAuth(true);
+      $("#auth-out").onclick = async () => {
+        try {
+          await fbAuth.signOut();
+          closeModal();
+        } catch (e) {
+          $("#auth-msg").textContent = fbErr(e);
+        }
+      };
+      $("#syncb").onclick = () => syncAll();
       hist = hist.filter((h) => h && h.id && Array.isArray(h.cards));
       sset("tarot-hist", hist);
       (async () => {
+        if (!fbConfigured()) {
+          say("本機儲存（未設定雲端）");
+          return;
+        }
+        if (typeof firebase === "undefined") {
+          say("本機儲存（Firebase SDK 載入失敗）");
+          return;
+        }
         try {
-          if (!(window.claude && claude.use)) return;
-          const db = await claude.use("db"),
-            us = await claude.use("user"),
-            id = us && (await us.id());
-          if (db && id) {
-            col = db.collection("data/users/" + id);
-            $("#syncb").classList.remove("hide");
-            $("#syncb").onclick = syncAll;
-            if (!cfgU && (Object.keys(CU).length || Object.keys(CS).length)) {
-              cfgU = Date.now();
-              sset("tarot-cfgu", cfgU);
+          const cfg = loadFbConfig();
+          if (!firebase.apps.length) firebase.initializeApp(cfg);
+          fbAuth = firebase.auth();
+          fbDb = firebase.firestore();
+          fbSt = firebase.storage();
+          fbAuth.onAuthStateChanged(async (u) => {
+            fbUser = u;
+            updateAuthUI();
+            if (u) {
+              if (
+                !cfgU &&
+                (Object.keys(CU).length || Object.keys(CS).length)
+              ) {
+                cfgU = Date.now();
+                sset("tarot-cfgu", cfgU);
+              }
+              await syncAll();
             }
-            await syncAll();
-          } else say("僅儲存在此裝置（未登入 Claude 或無雲端權限）");
+          });
         } catch (e) {
-          say("僅儲存在此裝置");
+          say("本機儲存（" + fbErr(e) + "）");
         }
       })();
       const rl1 = renderList;
