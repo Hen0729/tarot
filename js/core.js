@@ -39,6 +39,16 @@ const MA =
       );
       const $ = (s) => document.querySelector(s),
         mem = {};
+      /** 密碼學安全亂數：回傳 [0, 1) */
+      function rand() {
+        const a = new Uint32Array(1);
+        crypto.getRandomValues(a);
+        return a[0] / 4294967296;
+      }
+      /** 整數 [0, max]（含） */
+      function randInt(max) {
+        return Math.floor(rand() * (max + 1));
+      }
       const store = {
         get(k, d) {
           try {
@@ -373,7 +383,7 @@ const MA =
         $("#acts").innerHTML = "";
         const a = [...Array(78).keys()];
         for (let i = 77; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
+          const j = randInt(i);
           [a[i], a[j]] = [a[j], a[i]];
         }
         const s = SP[$("#sp").value];
@@ -384,7 +394,7 @@ const MA =
           .slice(0, pos.length)
           .map((id) => ({
             id,
-            r: $("#rv").checked && Math.random() < 0.5,
+            r: $("#rv").checked && rand() < 0.5,
             open: false,
           }));
         renderDraw();

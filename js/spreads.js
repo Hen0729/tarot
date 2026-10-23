@@ -186,7 +186,7 @@
         $("#acts").innerHTML = "";
         const a = [...Array(78).keys()];
         for (let i = 77; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
+          const j = randInt(i);
           [a[i], a[j]] = [a[j], a[i]];
         }
         const k = $("#sp").value,
@@ -203,7 +203,7 @@
           .slice(0, pos.length)
           .map((id) => ({
             id,
-            r: $("#rv").checked && Math.random() < 0.5,
+            r: $("#rv").checked && rand() < 0.5,
             open: false,
           }));
         renderDraw();
