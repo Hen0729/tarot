@@ -1095,8 +1095,11 @@
           const id = idOf(f.name);
           if (id == null) continue;
           try {
-            await addImg(id, f);
-          } catch (x) {}
+            const packed = await addImg(id, f);
+            if (packed) await pushImgCloud(packed.key, packed.dataUrl);
+          } catch (x) {
+            console.error("批次上傳失敗", f.name, x);
+          }
         }
         e.target.value = "";
         redraw();
@@ -1786,19 +1789,34 @@
           ),
         ]);
       }
+      async function blobToDataUrl(blob) {
+        return new Promise((ok, no) => {
+          const r = new FileReader();
+          r.onload = () => ok(r.result);
+          r.onerror = no;
+          r.readAsDataURL(blob);
+        });
+      }
       async function fetchImgToCache(key, itemRef) {
         try {
-          const url = await itemRef.getDownloadURL();
-          const blob = await (await fetch(url)).blob();
-          const dataUrl = await new Promise((ok, no) => {
-            const r = new FileReader();
-            r.onload = () => ok(r.result);
-            r.onerror = no;
-            r.readAsDataURL(blob);
-          });
+          let blob;
+          // 優先用 SDK（避開 GitHub Pages → Storage 的 CORS）
+          if (typeof itemRef.getBlob === "function") {
+            blob = await itemRef.getBlob();
+          } else if (typeof itemRef.getBytes === "function") {
+            blob = new Blob([await itemRef.getBytes()], {
+              type: "image/jpeg",
+            });
+          } else {
+            const url = await itemRef.getDownloadURL();
+            blob = await (await fetch(url)).blob();
+          }
+          const dataUrl = await blobToDataUrl(blob);
           IMG[key] = dataUrl;
           idbOp((s) => s.put(dataUrl, key));
-        } catch (e) {}
+        } catch (e) {
+          console.error("下載牌面失敗", key, e);
+        }
       }
       async function pullImages() {
         if (!fbUser || !fbSt) return;
@@ -1991,6 +2009,7 @@
           await pullImages();
           fillSp();
           fillDeckSel();
+          redraw();
           refreshView(cur[0], cur[1]);
           if (!$("#v-hist").classList.contains("hide")) renderList();
           say(tnow());
