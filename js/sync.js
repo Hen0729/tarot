@@ -78,8 +78,8 @@
         await ref.putString(dataUrl, "data_url", {
           contentType: "image/jpeg",
         });
-        // 自家上傳後短時間忽略即時拉取，避免重繪閃爍
-        imgQuietUntil = Date.now() + 5000;
+        // 自家上傳後忽略即時拉取，避免偶發整頁重繪閃爍
+        imgQuietUntil = Date.now() + 30000;
         await noteImgCloud(key, true);
       }
       async function deleteImgCloud(key) {
@@ -123,11 +123,16 @@
       async function fetchImgToCache(key, itemRef) {
         try {
           const cur = IMG[key];
-          // 本機剛上傳的 data URL 已在畫面上，勿立刻改成遠端網址（會閃一下）
-          if (typeof cur === "string" && cur.indexOf("data:") === 0)
+          // 本機上傳／data URL：本 session 不換成遠端網址
+          if (
+            (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key)) ||
+            (typeof cur === "string" && cur.indexOf("data:") === 0)
+          )
             return false;
           const url = await itemRef.getDownloadURL();
           if (!url) {
+            if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key))
+              return false;
             await dropLocalImg(key);
             return true;
           }
@@ -137,6 +142,8 @@
           return true;
         } catch (e) {
           console.error("下載牌面失敗", key, e);
+          if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(key))
+            return false;
           await dropLocalImg(key);
           return true;
         }
@@ -182,6 +189,8 @@
         if (cloudOk) {
           Object.keys(IMG).forEach((k) => {
             if (!keys.has(k)) {
+              if (typeof pinnedImgs !== "undefined" && pinnedImgs.has(k))
+                return;
               dropLocalImg(k);
               changed = true;
             }

@@ -98,6 +98,11 @@ const MA =
       function getImg(id, did) {
         return IMG[ik(id, did)];
       }
+      /** 本機剛上傳的圖：本 session 不被雲端網址蓋掉 */
+      const pinnedImgs = new Set();
+      function pinImg(key) {
+        if (key) pinnedImgs.add(key);
+      }
       function getCU(id) {
         if (!CU[deckId]) CU[deckId] = {};
         return CU[deckId][id] || {};
@@ -175,10 +180,14 @@ const MA =
           .querySelectorAll(".card.im img")
           .forEach((img) => {
             const fix = () => {
+              if (img.dataset.hold === "1") return;
               const card = img.closest(".card");
               if (!card) return;
               const id = +card.dataset.id;
               const key = ik(id);
+              if (pinnedImgs.has(key)) return;
+              const src = img.getAttribute("src") || "";
+              if (src.indexOf("data:") === 0) return;
               delete IMG[key];
               idbOp((s) => s.delete(key));
               card.classList.remove("im");
@@ -190,7 +199,14 @@ const MA =
               );
               if (cur[0] === id) show(id, cur[1]);
             };
-            if (img.complete && img.naturalWidth === 0) fix();
+            // 載入中不要當壞圖清掉（會造成偶發閃爍）
+            if (
+              img.complete &&
+              img.naturalWidth === 0 &&
+              img.getAttribute("src") &&
+              img.dataset.hold !== "1"
+            )
+              fix();
             else img.onerror = fix;
           });
       }
@@ -539,17 +555,35 @@ const MA =
           i.src = src;
         });
       }
+      /** 換圖：先解碼到新節點再一次置換，避免改 src 時舊畫面被清掉閃一下 */
       async function swapImgSrc(img, src) {
-        if (!img || !src) return;
-        if (img.getAttribute("src") === src) return;
-        await preloadSrc(src);
-        img.src = src;
-        if (img.decode)
-          try {
-            await img.decode();
-          } catch (e) {}
+        if (!img || !src) return img;
+        if (img.getAttribute("src") === src) return img;
+        img.dataset.hold = "1";
+        try {
+          const next = document.createElement("img");
+          next.alt = img.alt || "";
+          next.className = img.className;
+          if (img.classList.contains("rev")) next.classList.add("rev");
+          next.dataset.hold = "1";
+          await new Promise((ok, no) => {
+            next.onload = ok;
+            next.onerror = no;
+            next.src = src;
+          });
+          if (next.decode)
+            try {
+              await next.decode();
+            } catch (e) {}
+          img.replaceWith(next);
+          next.dataset.hold = "0";
+          return next;
+        } catch (e) {
+          img.dataset.hold = "0";
+          return img;
+        }
       }
-      /** 就地換／插入牌面圖：圖先解碼好再進 DOM，避免手機先出現空白再閃出 */
+      /** 就地換／插入牌面圖：圖先解碼好再進 DOM */
       async function paintCardImg(el, src) {
         if (!el || !src) return;
         try {
@@ -563,6 +597,7 @@ const MA =
           img = document.createElement("img");
           img.alt = "";
           img.src = src;
+          img.dataset.hold = "0";
           const sym = el.querySelector(".sym");
           if (sym) sym.replaceWith(img);
           else {
@@ -571,13 +606,16 @@ const MA =
             else el.appendChild(img);
           }
         } else {
-          await swapImgSrc(img, src);
+          img = await swapImgSrc(img, src);
         }
+        if (!img) return;
         img.onerror = () => {
+          if (img.dataset.hold === "1") return;
           const card = img.closest(".card");
           if (!card) return;
           const id = +card.dataset.id;
           const key = ik(id);
+          if (pinnedImgs.has(key)) return;
           delete IMG[key];
           idbOp((s) => s.delete(key));
           card.classList.remove("im");
@@ -636,11 +674,13 @@ const MA =
           img = document.createElement("img");
           img.alt = "";
           img.src = im;
+          if (rev === true) img.classList.add("rev");
           det.insertBefore(img, det.firstChild);
         } else {
-          await swapImgSrc(img, im);
+          img.classList.toggle("rev", rev === true);
+          img = await swapImgSrc(img, im);
         }
-        img.classList.toggle("rev", rev === true);
+        if (img) img.classList.toggle("rev", rev === true);
         const ci = box.querySelector("#ci");
         if (ci) ci.textContent = "更換牌面圖";
         if (!box.querySelector("#cd")) {
@@ -720,11 +760,15 @@ const MA =
         const d = await shrink(f),
           key = ik(id);
         IMG[key] = d;
+        pinImg(key);
+        if (typeof imgQuietUntil !== "undefined")
+          imgQuietUntil = Date.now() + 30000;
         idbOp((s) => s.put(d, key));
         return { key, dataUrl: d };
       }
       async function remImg(id) {
         const key = ik(id);
+        pinnedImgs.delete(key);
         delete IMG[key];
         idbOp((s) => s.delete(key));
         await deleteImgCloud(key);
