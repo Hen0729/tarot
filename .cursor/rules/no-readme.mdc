@@ -1,0 +1,9 @@
+---
+description: 不要建立或更新 README
+alwaysApply: true
+---
+
+# 不要 README
+
+- 不要建立、更新或建議新增 `README.md`（或其他 README 檔）。
+- 除非使用者明確要求，否則不要寫專案說明文件。
