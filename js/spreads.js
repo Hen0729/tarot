@@ -153,6 +153,14 @@
         $("#all").onclick = () => {
           drawn.forEach((d) => (d.open = true));
           renderDraw();
+          // 全部翻開後不要留著「上一張點開」的單卡牌義
+          cur = [null, undefined];
+          tipHide();
+          const det = $("#det");
+          if (det) {
+            det.classList.add("hide");
+            det.innerHTML = "";
+          }
         };
         $("#sv").onclick = () => {
           hist.unshift({
@@ -175,6 +183,11 @@
         };
       }
       $("#go").onclick = () => {
+        // 先清畫面，避免上一輪翻開的牌／牌義在新抽牌失敗或尚未重繪時殘留
+        drawAI = "";
+        resetDrawPanels();
+        $("#slots").innerHTML = '<span class="mut">洗牌中…</span>';
+        $("#acts").innerHTML = "";
         const a = [...Array(78).keys()];
         for (let i = 77; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -182,23 +195,14 @@
         }
         const k = $("#sp").value,
           s = SPS()[k];
+        if (!s) {
+          $("#slots").innerHTML =
+            '<span class="mut">找不到此牌陣，請重新選擇。</span>';
+          return;
+        }
         spName = s[0];
         pos = s[1];
         curLay = layOf(k);
-        drawAI = "";
-        editing = false;
-        cur = [null, undefined];
-        tipHide();
-        const ai = $("#aibox");
-        if (ai) {
-          ai.classList.add("hide");
-          ai.innerHTML = "";
-        }
-        const det = $("#det");
-        if (det) {
-          det.classList.add("hide");
-          det.innerHTML = "";
-        }
         drawn = a
           .slice(0, pos.length)
           .map((id) => ({
@@ -207,6 +211,7 @@
             open: false,
           }));
         renderDraw();
+        clearDrawPanels();
       };
       const hsHTML = (h) =>
         spreadHTML(

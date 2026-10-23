@@ -219,7 +219,28 @@ const MA =
         tip.style.left = left + "px";
         tip.style.top = top + "px";
       }
-      const tipHide = () => $("#tip").classList.add("hide");
+      const tipHide = () => {
+        const tip = $("#tip");
+        if (!tip) return;
+        tip.classList.add("hide");
+        tip.innerHTML = "";
+      };
+      let drawEpoch = 0;
+      function clearDrawPanels() {
+        editing = false;
+        cur = [null, undefined];
+        tipHide();
+        ["det", "deck-det", "aibox"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.classList.add("hide");
+          el.innerHTML = "";
+        });
+      }
+      function resetDrawPanels() {
+        drawEpoch++;
+        clearDrawPanels();
+      }
       function bindDeck() {
         $("#deck")
           .querySelectorAll(".card")
@@ -333,12 +354,16 @@ const MA =
           };
       }
       $("#go").onclick = () => {
+        resetDrawPanels();
+        $("#slots").innerHTML = '<span class="mut">洗牌中…</span>';
+        $("#acts").innerHTML = "";
         const a = [...Array(78).keys()];
         for (let i = 77; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [a[i], a[j]] = [a[j], a[i]];
         }
         const s = SP[$("#sp").value];
+        if (!s) return;
         spName = s[0];
         pos = s[1];
         drawn = a
@@ -349,6 +374,7 @@ const MA =
             open: false,
           }));
         renderDraw();
+        clearDrawPanels();
       };
       const esc = (s) =>
         String(s).replace(

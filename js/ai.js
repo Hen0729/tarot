@@ -60,13 +60,18 @@ const cardsOf = (a) =>
         return `你是經驗豐富的偉特塔羅解讀者。請用繁體中文，針對以下一次抽牌做「整體統整解析」。\n牌組：${deckName(did)}\n牌陣：${h.spread}\n問題：${h.q || "（未提供，請做一般性解讀）"}\n\n各位置的牌與牌義：\n${cs.map((x) => `- ${x.p}：${x.d.z}（${x.r ? "逆位" : "正位"}）；通用牌義：${x.r ? x.d.r : x.d.u}${pm(x, did)}`).join("\n")}\n\n統計觀察：\n${stat(cs).join("\n")}\n\n請依序輸出（使用簡短標題，不要使用 # 或 ** 等 markdown 符號）：\n一、整體主題（2-3 句，說明這次牌陣的核心訊息）\n二、逐位置串連解讀（依牌陣位置，說明每張牌在該位置的意義，並與前後位置互相呼應，不要只是重複牌義）\n三、牌與牌之間的互動（大小牌、元素、正逆位、重複數字帶來的線索，以及張力或矛盾處）\n四、建議與可行動方向（3 點以內，具體）\n若有「我的牌義」，請優先參考使用者的個人詮釋。語氣溫和，把結果當作反思參考，不做絕對預言。`;
       }
       async function analyze(h, box, after) {
+        const epoch = drawEpoch;
         const cs = cardsOf(h.cards);
-        box.classList.remove("hide");
+        const stillCurrent = () => epoch === drawEpoch && box;
         if (!cs.length) {
+          if (!stillCurrent()) return;
+          box.classList.remove("hide");
           box.innerHTML = '<p class="mut">尚未選牌。</p>';
           return;
         }
         if (!SM) {
+          if (!stillCurrent()) return;
+          box.classList.remove("hide");
           box.innerHTML =
             view(cs) +
             "<p><b>逐位置牌義彙整</b></p>" +
@@ -79,18 +84,26 @@ const cardsOf = (a) =>
             '<p class="mut">目前環境無法使用 AI 串連解析，以上為本機彙整。</p>';
           return;
         }
+        if (!stillCurrent()) return;
+        box.classList.remove("hide");
         box.innerHTML = view(cs) + '<p class="mut">AI 解析中…</p>';
         try {
           const r = await SM(promptOf(h, cs), {
             cache: false,
             onText: ({ text }) => {
+              if (!stillCurrent()) return;
+              box.classList.remove("hide");
               box.innerHTML = view(cs, text);
             },
           });
+          if (!stillCurrent()) return;
           h.ai = r.text;
+          box.classList.remove("hide");
           box.innerHTML = view(cs, r.text);
           after && after();
         } catch (e) {
+          if (!stillCurrent()) return;
+          box.classList.remove("hide");
           box.innerHTML =
             view(cs) +
             '<p class="mut">AI 解析失敗（' +
