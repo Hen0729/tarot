@@ -175,10 +175,22 @@ const MA =
       function edit() {
         editing = true;
         const id = cur[0],
+          rev = cur[1],
           c = D[id],
           u = getCU(id),
+          im = getImg(id),
           box = detBox();
-        box.innerHTML = `<h3>✎ ${c.z}（${esc(deckName(deckId))}）：我的牌義</h3><label class="mut">個人正位牌義</label><textarea id="eu">${esc(u.u || "")}</textarea><label class="mut">個人逆位牌義</label><textarea id="er">${esc(u.r || "")}</textarea><label class="mut">心得／聯想／相關經驗</label><textarea id="en">${esc(u.n || "")}</textarea><div class="row"><button class="pri" id="es">儲存</button><button id="ec">取消</button></div>`;
+        const form = `<div class="dbody edit-mean"><h3>✎ ${c.z}（${esc(deckName(deckId))}）：我的牌義</h3><label class="mut">個人正位牌義</label><textarea id="eu">${esc(u.u || "")}</textarea><label class="mut">個人逆位牌義</label><textarea id="er">${esc(u.r || "")}</textarea><label class="mut">心得／聯想／相關經驗</label><textarea id="en">${esc(u.n || "")}</textarea><div class="row"><button class="pri" id="es">儲存</button><button id="ec">取消</button></div></div>`;
+        const det = box.querySelector(".det");
+        const oldImg = det && det.querySelector("img");
+        if (det && oldImg && im && oldImg.getAttribute("src") === im) {
+          // 編輯時保留牌面，只換右側／下方文字表單
+          const db = det.querySelector(".dbody");
+          if (db) db.outerHTML = form;
+          else det.insertAdjacentHTML("beforeend", form);
+        } else {
+          box.innerHTML = `<div class="det">${im ? `<img src="${im}" class="${rev === true ? "rev" : ""}" alt="">` : ""}${form}</div>`;
+        }
         $("#es").onclick = () => {
           const v = {
             u: $("#eu").value.trim(),
