@@ -43,6 +43,7 @@
           [4, 1],
           [4, 0],
         ],
+        // 十字 + 右側豎列（中間留一欄空隙）
         celtic: [
           [1, 1],
           [1, 1, 1],
@@ -50,10 +51,10 @@
           [0, 1],
           [1, 0],
           [2, 1],
-          [3, 3],
-          [3, 2],
-          [3, 1],
-          [3, 0],
+          [4, 3],
+          [4, 2],
+          [4, 1],
+          [4, 0],
         ],
         year: [
           [0, 0],
@@ -107,50 +108,103 @@
         $("#msp").value = SPS()[b] ? b : "three";
       }
       fillSp();
+      /** 依牌數／格數決定基礎牌面尺寸 class */
+      function boardSizeClass(n, lay, useLay) {
+        if (!useLay || !lay || lay.length < n)
+          return n >= 10 ? " xs" : n >= 6 ? " sm" : "";
+        const W = Math.max(...lay.map((l) => l[0])) + 1,
+          H = Math.max(...lay.map((l) => l[1])) + 1;
+        if (W >= 6 || H >= 5 || n >= 10) return " xs";
+        if (W >= 4 || H >= 3 || n >= 6) return " sm";
+        return "";
+      }
+      /** 複雜牌陣依容器寬度縮 --cw／--ch，避免橫向溢出或過擠 */
+      function fitBoard(root, lay, useLay) {
+        if (!root) return;
+        ["--cw", "--ch", "--cg", "--lh"].forEach((k) =>
+          root.style.removeProperty(k),
+        );
+        if (!useLay || !lay || !lay.length) return;
+        const W = Math.max(...lay.map((l) => l[0])) + 1,
+          H = Math.max(...lay.map((l) => l[1])) + 1;
+        const avail = Math.max(200, root.clientWidth || root.offsetWidth || 320);
+        const baseCw =
+          parseFloat(getComputedStyle(root).getPropertyValue("--cw")) || 112;
+        const gap0 = W >= 6 || H >= 5 ? 8 : W >= 4 ? 10 : 14;
+        const label0 = 28;
+        let cw = Math.min(
+          baseCw,
+          Math.floor((avail - gap0) / W - gap0),
+        );
+        cw = Math.max(52, cw);
+        // 過高時再縮一點，減少整頁狂捲
+        const maxH = Math.min(window.innerHeight * 0.72, 720);
+        let ch = Math.round(cw * (184 / 112));
+        let cellH = ch + label0;
+        if (H * cellH > maxH) {
+          cellH = Math.floor(maxH / H);
+          ch = Math.max(78, cellH - label0);
+          cw = Math.min(cw, Math.round(ch * (112 / 184)));
+          cw = Math.max(52, cw);
+          ch = Math.round(cw * (184 / 112));
+        }
+        const cg = Math.max(4, Math.min(gap0, Math.floor(cw / 9)));
+        const lh = Math.max(18, Math.min(28, Math.round(cw * 0.28)));
+        root.style.setProperty("--cw", cw + "px");
+        root.style.setProperty("--ch", ch + "px");
+        root.style.setProperty("--cg", cg + "px");
+        root.style.setProperty("--lh", lh + "px");
+        root.dataset.bw = W;
+        root.dataset.bh = H;
+      }
       function spreadHTML(P, lay, useLay, fn) {
         const n = P.length;
         if (!useLay || !lay || lay.length < n)
-          return `<div class="flow">${P.map((p, i) => `<div class="slot"><div class="lb">${esc(p)}</div>${fn(i)}</div>`).join("")}</div>`;
+          return `<div class="flow">${P.map((p, i) => `<div class="slot"><div class="lb" title="${esc(p)}">${esc(p)}</div>${fn(i)}</div>`).join("")}</div>`;
         const W = Math.max(...lay.map((l) => l[0])) + 1,
           H = Math.max(...lay.map((l) => l[1])) + 1;
-        return `<div class="lay" style="width:calc(${W}*(var(--cw,112px) + 14px));height:calc(${H}*(var(--ch,184px) + 40px))">${P.map(
+        return `<div class="lay" data-w="${W}" data-h="${H}" style="width:calc(${W}*(var(--cw,112px) + var(--cg,14px)));height:calc(${H}*(var(--ch,184px) + var(--lh,40px)))">${P.map(
           (p, i) => {
             const [x, y, r] = lay[i];
-            return `<div class="slot${r ? " rot" : ""}" style="left:calc(${x}*(var(--cw,112px) + 14px));top:calc(${y}*(var(--ch,184px) + 40px));width:var(--cw,112px)"><div class="lb">${esc(p)}</div>${fn(i)}</div>`;
+            return `<div class="slot${r ? " rot" : ""}" style="left:calc(${x}*(var(--cw,112px) + var(--cg,14px)));top:calc(${y}*(var(--ch,184px) + var(--lh,40px)));width:var(--cw,112px)"><div class="lb" title="${esc(p)}">${esc(p)}</div>${fn(i)}</div>`;
           },
         ).join("")}</div>`;
       }
       function renderDraw() {
         const n = drawn.length;
         if (!n) return;
-        $("#slots").className = "slots" + (n >= 6 ? " sm" : "");
-        $("#slots").innerHTML = spreadHTML(
-          pos,
-          curLay,
-          $("#lay").checked,
-          (i) => {
-            const d = drawn[i];
-            return d.open
-              ? face(D[d.id], d.r, true)
-              : `<div class="card back" data-i="${i}">✦</div>`;
-          },
+        const useLay = $("#lay").checked;
+        const box = $("#slots");
+        box.className =
+          "slots" + boardSizeClass(n, curLay, useLay);
+        box.innerHTML = spreadHTML(pos, curLay, useLay, (i) => {
+          const d = drawn[i];
+          return d.open
+            ? face(D[d.id], d.r, true)
+            : `<div class="card back" data-i="${i}">✦</div>`;
+        });
+        fitBoard(box, curLay, useLay);
+        box.querySelectorAll(".card.back").forEach(
+          (el) =>
+            (el.onclick = () => {
+              const d = drawn[+el.dataset.i];
+              d.open = true;
+              renderDraw();
+              show(d.id, d.r);
+            }),
         );
-        $("#slots")
-          .querySelectorAll(".card.back")
-          .forEach(
-            (el) =>
-              (el.onclick = () => {
-                const d = drawn[+el.dataset.i];
-                d.open = true;
-                renderDraw();
-                show(d.id, d.r);
-              }),
-          );
-        bindHover($("#slots"));
-        bindBrokenImgs($("#slots"));
+        bindHover(box);
+        bindBrokenImgs(box);
         $("#acts").innerHTML =
           `<span class="mut">${esc(spName)}</span><button id="all">全部翻開</button><button id="ai">✨ 統整解析</button><button class="pri" id="sv">儲存整個牌陣到紀錄</button>`;
       }
+      let fitTimer = 0;
+      window.addEventListener("resize", () => {
+        clearTimeout(fitTimer);
+        fitTimer = setTimeout(() => {
+          if (drawn.length) renderDraw();
+        }, 120);
+      });
       $("#acts").addEventListener("click", (e) => {
         const btn = e.target.closest("button");
         if (!btn || !$("#acts").contains(btn)) return;
@@ -230,11 +284,13 @@
         renderDraw();
         clearDrawPanels();
       };
-      const hsHTML = (h) =>
-        spreadHTML(
+      const hsHTML = (h) => {
+        const useLay = $("#lay").checked;
+        const n = h.cards.length;
+        const html = spreadHTML(
           h.cards.map((c, k) => c.p || "第" + (k + 1) + "張"),
           h.lay,
-          $("#lay").checked,
+          useLay,
           (i) => {
             const c = h.cards[i];
             return c.i == null
@@ -242,6 +298,9 @@
               : face(D[c.i], c.r, true, h.deck || deckId);
           },
         );
+        const sz = boardSizeClass(n, h.lay, useLay);
+        return `<div class="hs-board${sz}" data-lay="${useLay && h.lay ? 1 : 0}">${html}</div>`;
+      };
       /** 輸入 debounce：避免每鍵整表重繪／狂打雲端 */
       const saveHistSoon = (() => {
         let t;
@@ -261,15 +320,22 @@
  <textarea class="hn" placeholder="我的塔羅筆記…">${esc(h.note || "")}</textarea>
  <div class="row entry-acts" style="margin:6px 0 0"><button type="button" class="del">🗑 刪除此紀錄</button></div></div>`;
       }
+      function fitHistBoard(el, h) {
+        const board = el && el.querySelector(".hs-board");
+        if (!board) return;
+        fitBoard(board, h.lay, $("#lay").checked && !!h.lay);
+      }
       function bindEntry(el, h) {
         if (!el || !h) return;
         const rf = () => {
           const s = el.querySelector(".hs");
           if (!s) return;
           s.innerHTML = hsHTML(h);
+          fitHistBoard(el, h);
           bindHover(s);
           bindBrokenImgs(s);
         };
+        fitHistBoard(el, h);
         const meta = el.querySelector(".meta");
         if (meta) meta.innerHTML = entryMetaText(h);
         const hq = el.querySelector(".hq");
