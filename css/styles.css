@@ -479,21 +479,28 @@
       .hs .card .sym {
         font-size: 20px;
       }
-      /* 凱爾特十字：現況在下、挑戰微偏橫壓，兩張都露出可點 */
+      /* 凱爾特十字：現況在下、挑戰微偏橫壓；rot 格子本身不擋點擊 */
       .slot.under {
         z-index: 1;
       }
-      .slot.under .lb {
+      .slot.under .lb,
+      .slot.under .card {
         position: relative;
-        z-index: 4;
+        z-index: 2;
       }
       .slot.rot {
         z-index: 3;
+        pointer-events: none;
+      }
+      .slot.rot .card,
+      .slot.rot .lb {
+        pointer-events: auto;
       }
       .slot.rot .card {
         transform: rotate(90deg) scale(0.86);
-        margin-top: calc(var(--ch, 184px) * 0.1);
-        margin-left: calc(var(--cw, 112px) * 0.16);
+        /* 偏右下，讓現況左側露出可點 */
+        margin-top: calc(var(--ch, 184px) * 0.12);
+        margin-left: calc(var(--cw, 112px) * 0.22);
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
       }
       .slot.rot .card:hover {
