@@ -166,6 +166,7 @@
         if (btn.id === "sv") {
           hist.unshift({
             id: Date.now(),
+            u: Date.now(),
             t: new Date().toLocaleString("zh-TW"),
             q: $("#q").value,
             note: "",
@@ -241,74 +242,129 @@
               : face(D[c.i], c.r, true, h.deck || deckId);
           },
         );
+      /** 輸入 debounce：避免每鍵整表重繪／狂打雲端 */
+      const saveHistSoon = (() => {
+        let t;
+        return () => {
+          clearTimeout(t);
+          t = setTimeout(() => save(), 450);
+        };
+      })();
+      function entryMetaText(h) {
+        return `${h.t}・${esc((h.spread || "自由").split("：")[0])}（${h.cards.length} 張）${h.deck ? "・" + esc(deckName(h.deck)) : ""}`;
+      }
+      function entryHTML(h) {
+        return `<div class="entry" data-h="${h.id}"><div class="mut meta">${entryMetaText(h)}</div>
+ <input type="text" class="hq" style="width:100%;margin-top:6px" placeholder="問題" value="${esc(h.q || "")}">
+ <div class="hs">${hsHTML(h)}</div>
+ <details><summary class="mut" style="cursor:pointer">編輯牌面（逐個位置選牌）</summary>${h.cards.map((c, k) => `<div class="row" style="margin:6px 0 0"><span style="min-width:90px">${esc(c.p || "第" + (k + 1) + "張")}</span><select class="pc" data-k="${k}"><option value="">（未選）</option>${D.map((d) => `<option value="${d.id}"${d.id === c.i ? " selected" : ""}>${d.z}</option>`).join("")}</select><label class="mut"><input type="checkbox" class="pr" data-k="${k}" style="padding:0"${c.r ? " checked" : ""}> 逆位</label></div>`).join("")}</details>
+ <textarea class="hn" placeholder="我的塔羅筆記…">${esc(h.note || "")}</textarea>
+ <div class="row entry-acts" style="margin:6px 0 0"><button type="button" class="del">🗑 刪除此紀錄</button></div></div>`;
+      }
+      function bindEntry(el, h) {
+        if (!el || !h) return;
+        const rf = () => {
+          const s = el.querySelector(".hs");
+          if (!s) return;
+          s.innerHTML = hsHTML(h);
+          bindHover(s);
+          bindBrokenImgs(s);
+        };
+        const meta = el.querySelector(".meta");
+        if (meta) meta.innerHTML = entryMetaText(h);
+        const hq = el.querySelector(".hq");
+        if (hq) {
+          hq.oninput = (e) => {
+            h.q = e.target.value;
+            h.u = Date.now();
+            saveHistSoon();
+          };
+        }
+        const hn = el.querySelector(".hn");
+        if (hn) {
+          hn.oninput = (e) => {
+            h.note = e.target.value;
+            h.u = Date.now();
+            saveHistSoon();
+          };
+        }
+        el.querySelectorAll(".pc").forEach((s) => {
+          s.onchange = () => {
+            h.cards[+s.dataset.k].i = s.value === "" ? null : +s.value;
+            h.u = Date.now();
+            save();
+            rf();
+          };
+        });
+        el.querySelectorAll(".pr").forEach((s) => {
+          s.onchange = () => {
+            h.cards[+s.dataset.k].r = s.checked;
+            h.u = Date.now();
+            save();
+            rf();
+          };
+        });
+        const row = el.querySelector(".entry-acts");
+        const del = row && row.querySelector(".del");
+        if (del) {
+          del.onclick = () => {
+            row.innerHTML =
+              '<span>確定要刪除這筆紀錄嗎？刪除後無法復原。</span><button type="button" class="pri yes">確定刪除</button><button type="button" class="no">取消</button>';
+            row.querySelector(".yes").onclick = () => {
+              hist = hist.filter((x) => x !== h);
+              if (typeof markHistDeleted === "function") markHistDeleted(h.id);
+              save();
+              removeHistEntry(el);
+            };
+            row.querySelector(".no").onclick = () => {
+              row.innerHTML =
+                '<button type="button" class="del">🗑 刪除此紀錄</button>';
+              bindEntry(el, h);
+              if (typeof enhanceHistEntry === "function")
+                enhanceHistEntry(el, h);
+            };
+          };
+        }
+        bindHover(el);
+        bindBrokenImgs(el);
+        if (typeof enhanceHistEntry === "function") enhanceHistEntry(el, h);
+      }
+      function removeHistEntry(el) {
+        const L = $("#list");
+        if (el && el.parentNode) el.remove();
+        if (!hist.length) {
+          L.innerHTML = '<p class="mut">還沒有紀錄。</p>';
+          return;
+        }
+        if (!L.querySelector(".entry")) renderList();
+      }
+      function prependHistEntry(h) {
+        const L = $("#list");
+        const empty = L.querySelector(":scope > .mut");
+        if (empty && !L.querySelector(".entry")) L.innerHTML = "";
+        L.insertAdjacentHTML("afterbegin", entryHTML(h));
+        const el = L.querySelector(`.entry[data-h="${h.id}"]`);
+        bindEntry(el, h);
+        return el;
+      }
       function renderList() {
         const L = $("#list");
         if (!hist.length) {
           L.innerHTML = '<p class="mut">還沒有紀錄。</p>';
           return;
         }
-        L.innerHTML = hist
-          .map(
-            (
-              h,
-            ) => `<div class="entry" data-h="${h.id}"><div class="mut">${h.t}・${esc((h.spread || "自由").split("：")[0])}（${h.cards.length} 張）${h.deck ? "・" + esc(deckName(h.deck)) : ""}</div>
- <input type="text" class="hq" style="width:100%;margin-top:6px" placeholder="問題" value="${esc(h.q)}">
- <div class="hs">${hsHTML(h)}</div>
- <details><summary class="mut" style="cursor:pointer">編輯牌面（逐個位置選牌）</summary>${h.cards.map((c, k) => `<div class="row" style="margin:6px 0 0"><span style="min-width:90px">${esc(c.p || "第" + (k + 1) + "張")}</span><select class="pc" data-k="${k}"><option value="">（未選）</option>${D.map((d) => `<option value="${d.id}"${d.id === c.i ? " selected" : ""}>${d.z}</option>`).join("")}</select><label class="mut"><input type="checkbox" class="pr" data-k="${k}" style="padding:0"${c.r ? " checked" : ""}> 逆位</label></div>`).join("")}</details>
- <textarea class="hn" placeholder="我的塔羅筆記…">${esc(h.note)}</textarea>
- <div class="row entry-acts" style="margin:6px 0 0"><button class="del">🗑 刪除此紀錄</button></div></div>`,
-          )
-          .join("");
-        bindHover(L);
+        L.innerHTML = hist.map((h) => entryHTML(h)).join("");
         L.querySelectorAll(".entry").forEach((el) => {
-          const h = hist.find((x) => x.id == el.dataset.h),
-            rf = () => {
-              const s = el.querySelector(".hs");
-              s.innerHTML = hsHTML(h);
-              bindHover(s);
-            };
-          el.querySelector(".hq").oninput = (e) => {
-            h.q = e.target.value;
-            save();
-          };
-          el.querySelector(".hn").oninput = (e) => {
-            h.note = e.target.value;
-            save();
-          };
-          el.querySelectorAll(".pc").forEach(
-            (s) =>
-              (s.onchange = () => {
-                h.cards[+s.dataset.k].i = s.value === "" ? null : +s.value;
-                save();
-                rf();
-              }),
-          );
-          el.querySelectorAll(".pr").forEach(
-            (s) =>
-              (s.onchange = () => {
-                h.cards[+s.dataset.k].r = s.checked;
-                save();
-                rf();
-              }),
-          );
-          const row = el.querySelector(".entry-acts");
-          row.querySelector(".del").onclick = () => {
-            row.innerHTML =
-              '<span>確定要刪除這筆紀錄嗎？刪除後無法復原。</span><button class="pri yes">確定刪除</button><button class="no">取消</button>';
-            row.querySelector(".yes").onclick = () => {
-              hist = hist.filter((x) => x !== h);
-              save();
-              renderList();
-            };
-            row.querySelector(".no").onclick = () => renderList();
-          };
+          const h = hist.find((x) => String(x.id) === String(el.dataset.h));
+          bindEntry(el, h);
         });
       }
       $("#addm").onclick = () => {
         const k = $("#msp").value,
           s = SPS()[k];
-        hist.unshift({
+        const h = {
           id: Date.now(),
+          u: Date.now(),
           t: new Date().toLocaleString("zh-TW"),
           q: "",
           note: "",
@@ -316,11 +372,18 @@
           lay: layOf(k),
           deck: deckId,
           cards: s[1].map((p) => ({ i: null, r: false, p })),
-        });
+        };
+        hist.unshift(h);
         save();
-        renderList();
-        const d = document.querySelector("#list details");
-        if (d) d.open = true;
+        if (!isHidden($("#v-hist"))) {
+          const empty = !$("#list").querySelector(".entry");
+          if (empty && hist.length === 1) renderList();
+          else prependHistEntry(h);
+          const d = $("#list").querySelector(
+            `.entry[data-h="${h.id}"] details`,
+          );
+          if (d) d.open = true;
+        } else renderList();
       };
       $("#lay").onchange = () => {
         store.set("tarot-lay", $("#lay").checked);

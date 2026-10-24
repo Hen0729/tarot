@@ -7,18 +7,79 @@
       function tnow() {
         return "";
       }
-      // 同步狀態不顯示在畫面上（仍可在 console 看錯誤）
+      /** 同步狀態列：busy / ok / err / idle / offline */
+      let netOnline =
+          typeof navigator === "undefined" ? true : navigator.onLine !== false,
+        persistenceOn = false;
+      function setSyncStatus(text, kind) {
+        const el = document.getElementById("sync-status");
+        if (!el) return;
+        el.textContent = text || "";
+        el.dataset.kind = kind || "idle";
+      }
+      function offlineStatusText() {
+        return persistenceOn ? "離線・使用本機快取" : "離線・僅本機";
+      }
+      function showIdleSyncStatus() {
+        if (!fbConfigured()) {
+          setSyncStatus("僅本機（未設定雲端）", "idle");
+          return;
+        }
+        if (!netOnline) {
+          setSyncStatus(offlineStatusText(), "offline");
+          return;
+        }
+        if (fbUser) setSyncStatus("已同步", "ok");
+        else setSyncStatus("僅本機", "idle");
+      }
       function say(msg) {
-        if (msg && /失敗|錯誤|拒絕|逾時/.test(msg)) console.warn(msg);
+        if (!msg) {
+          showIdleSyncStatus();
+          return;
+        }
+        if (/失敗|錯誤|拒絕|逾時/.test(msg)) {
+          console.warn(msg);
+          setSyncStatus(msg + " · 點此重試", "err");
+          return;
+        }
+        if (!netOnline && fbConfigured()) {
+          // 斷網時忙線訊息改標成離線，避免以為還在上傳成功
+          if (/中…|中\.\.\.|上傳|同步|檢查|登入/.test(msg)) {
+            setSyncStatus(offlineStatusText() + "（變更會暫存在本機）", "offline");
+            return;
+          }
+        }
+        if (/中…|中\.\.\.|上傳|同步|檢查|登入/.test(msg)) {
+          setSyncStatus(msg, "busy");
+          return;
+        }
+        setSyncStatus(msg, "ok");
       }
       let fbAuth = null,
         fbDb = null,
         fbSt = null,
         fbUser = null,
         lastS = {},
+        lastDelS = {},
         tm = {},
         cfgU = store.get("tarot-cfgu", 0),
-        syncing = false;
+        syncing = false,
+        deletedHist = store.get("tarot-hist-del", {}) || {};
+      if (typeof deletedHist !== "object" || Array.isArray(deletedHist))
+        deletedHist = {};
+      function markHistDeleted(id) {
+        if (id == null) return;
+        deletedHist[String(id)] = Date.now();
+        sset("tarot-hist-del", deletedHist);
+      }
+      function clearHistDeleted(id) {
+        if (id == null) return;
+        delete deletedHist[String(id)];
+        delete lastDelS[String(id)];
+      }
+      function persistHistDeleted() {
+        sset("tarot-hist-del", deletedHist);
+      }
       function fbConfigured() {
         return !!(
           FIREBASE_CONFIG &&
@@ -41,54 +102,160 @@
       }
       /** 各牌面上次套用的雲端時間戳（更換圖時 URL 常不變，要靠這個判斷） */
       const imgMetaApplied = {};
-      async function noteImgCloud(key, present, ts) {
+      /** Firestore Timestamp / number → millis */
+      function fbTime(v) {
+        if (v == null) return 0;
+        if (typeof v === "number" && isFinite(v)) return v;
+        if (typeof v.toMillis === "function") return v.toMillis();
+        if (typeof v.seconds === "number")
+          return v.seconds * 1000 + (v.nanoseconds || 0) / 1e6;
+        return 0;
+      }
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      /** 上傳失敗待重試：key → dataUrl */
+      const pendingImgRetry = new Map();
+      const toastedImgFail = new Set();
+      function notifyImgFail(key, msg) {
+        console.warn(msg, key);
+        if (toastedImgFail.has(key)) return;
+        toastedImgFail.add(key);
+        if (typeof toast === "function") toast(msg);
+      }
+      async function noteImgCloud(key, present) {
         const root = userCol();
         if (!root) return;
         try {
           const stamp = present
-            ? typeof ts === "number"
-              ? ts
-              : Date.now()
+            ? firebase.firestore.FieldValue.serverTimestamp()
             : firebase.firestore.FieldValue.delete();
           await root
             .collection("meta")
             .doc("imgs")
             .set({ [key]: stamp }, { merge: true });
-          if (present && typeof stamp === "number")
-            imgMetaApplied[key] = Math.max(imgMetaApplied[key] || 0, stamp);
+          if (present) {
+            const now = Date.now();
+            imgMetaApplied[key] = Math.max(imgMetaApplied[key] || 0, now);
+            lastImgMeta[key] = now;
+          } else {
+            delete imgMetaApplied[key];
+            delete lastImgMeta[key];
+          }
         } catch (e) {
           console.error("寫入圖片索引失敗", key, e);
+          throw e;
         }
       }
       /** 上次看到的 imgs meta（即時同步用，只拉有變的 key） */
       let lastImgMeta = {};
-      async function pushImgCloud(key, dataUrl) {
+      function imgStorageRefs(did, cid) {
+        const base = `users/${fbUser.uid}/${did}/${cid}`;
+        return {
+          webp: fbSt.ref(base + ".webp"),
+          jpg: fbSt.ref(base + ".jpg"),
+        };
+      }
+      function dataUrlContentType(dataUrl) {
+        if (String(dataUrl).indexOf("data:image/webp") === 0)
+          return "image/webp";
+        return "image/jpeg";
+      }
+      /** 優先 WebP，找不到再試舊版 JPEG */
+      async function getImgDownloadUrl(did, cid) {
+        const refs = imgStorageRefs(did, cid);
+        try {
+          return await refs.webp.getDownloadURL();
+        } catch (e) {
+          if (e && e.code !== "storage/object-not-found") throw e;
+        }
+        try {
+          return await refs.jpg.getDownloadURL();
+        } catch (e) {
+          if (e && e.code !== "storage/object-not-found") throw e;
+        }
+        return null;
+      }
+      async function deleteImgStorageFiles(did, cid) {
+        const refs = imgStorageRefs(did, cid);
+        for (const ref of [refs.webp, refs.jpg]) {
+          try {
+            await ref.delete();
+          } catch (e) {
+            if (e && e.code !== "storage/object-not-found") throw e;
+          }
+        }
+      }
+      async function pushImgCloud(key, dataUrl, attempt) {
+        attempt = attempt || 0;
         if (!fbUser || !fbSt) {
-          console.warn("尚未登入雲端，牌面只存在本機", key);
+          pendingImgRetry.set(key, dataUrl);
+          console.warn("尚未登入雲端，牌面稍後重試上傳", key);
           return;
         }
         const p = imgPath(key);
         if (!p) return;
-        const ref = fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`);
-        await ref.putString(dataUrl, "data_url", {
-          contentType: "image/jpeg",
-        });
-        const ts = Date.now();
-        await noteImgCloud(key, true, ts);
-        lastImgMeta[key] = ts;
+        try {
+          const type = dataUrlContentType(dataUrl);
+          const refs = imgStorageRefs(p.did, p.cid);
+          const primary = type === "image/webp" ? refs.webp : refs.jpg;
+          await primary.putString(dataUrl, "data_url", {
+            contentType: type,
+          });
+          // 新格式上傳後清掉另一副檔名，避免重複占空間
+          const other = primary === refs.webp ? refs.jpg : refs.webp;
+          try {
+            await other.delete();
+          } catch (e) {
+            if (e && e.code !== "storage/object-not-found")
+              console.warn("清除舊牌面檔失敗", key, e);
+          }
+          await noteImgCloud(key, true);
+          pendingImgRetry.delete(key);
+          toastedImgFail.delete(key);
+        } catch (e) {
+          if (attempt < 3) {
+            await sleep(400 * (attempt + 1));
+            return pushImgCloud(key, dataUrl, attempt + 1);
+          }
+          pendingImgRetry.set(key, dataUrl);
+          notifyImgFail(key, "牌面上傳雲端失敗，已排入重試");
+          throw e;
+        }
       }
-      async function deleteImgCloud(key) {
+      async function deleteImgCloud(key, attempt) {
+        attempt = attempt || 0;
         if (!fbUser || !fbSt) return;
         const p = imgPath(key);
         if (!p) return;
         try {
-          await fbSt
-            .ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`)
-            .delete();
+          await deleteImgStorageFiles(p.did, p.cid);
+          await noteImgCloud(key, false);
         } catch (e) {
-          if (e && e.code !== "storage/object-not-found") throw e;
+          if (attempt < 3) {
+            await sleep(400 * (attempt + 1));
+            return deleteImgCloud(key, attempt + 1);
+          }
+          notifyImgFail(key, "牌面雲端刪除失敗，稍後會再試");
+          throw e;
         }
-        await noteImgCloud(key, false);
+      }
+      /** 刪牌組時一併清 meta/imgs 對應 key，避免他機以為還有圖 */
+      async function clearDeckImgMeta(did) {
+        const root = userCol();
+        if (!root || !did) return;
+        const prefix = did + ":";
+        const updates = {};
+        new Set([
+          ...Object.keys(lastImgMeta || {}),
+          ...Object.keys(IMG || {}),
+          ...Object.keys(imgMetaApplied || {}),
+        ]).forEach((k) => {
+          if (!k.startsWith(prefix)) return;
+          updates[k] = firebase.firestore.FieldValue.delete();
+          delete lastImgMeta[k];
+          delete imgMetaApplied[k];
+        });
+        if (!Object.keys(updates).length) return;
+        await root.collection("meta").doc("imgs").set(updates, { merge: true });
       }
       async function deleteDeckCloud(did) {
         if (!fbUser || !fbSt) return;
@@ -98,6 +265,22 @@
         } catch (e) {
           if (e && e.code !== "storage/object-not-found")
             say("牌組圖刪除失敗：" + fbErr(e));
+        }
+        try {
+          await clearDeckImgMeta(did);
+        } catch (e) {
+          say("牌組圖索引清除失敗：" + fbErr(e));
+        }
+      }
+      async function flushPendingImgRetry() {
+        if (!fbUser || !fbSt || !pendingImgRetry.size) return;
+        const entries = [...pendingImgRetry.entries()];
+        for (const [key, dataUrl] of entries) {
+          try {
+            await pushImgCloud(key, dataUrl, 0);
+          } catch (e) {
+            console.warn("重試上傳仍失敗", key, e);
+          }
         }
       }
       function withTimeout(promise, ms, label) {
@@ -143,7 +326,18 @@
           } else if (typeof pinnedImgs !== "undefined") {
             pinnedImgs.delete(key);
           }
-          const url = await itemRef.getDownloadURL();
+          let url = null;
+          if (itemRef) {
+            try {
+              url = await itemRef.getDownloadURL();
+            } catch (e) {
+              if (e && e.code !== "storage/object-not-found") throw e;
+            }
+          }
+          if (!url) {
+            const p = imgPath(key);
+            if (p) url = await getImgDownloadUrl(p.did, p.cid);
+          }
           if (!url) {
             if (
               !remoteNewer &&
@@ -204,7 +398,7 @@
         Object.entries(data || {}).forEach(([k, v]) => {
           if (!k || k.indexOf(":") < 0) return;
           keys.add(k);
-          metaTimes[k] = typeof v === "number" ? v : 0;
+          metaTimes[k] = fbTime(v);
         });
         return { keys, metaTimes };
       }
@@ -215,11 +409,8 @@
           keyList.map((key) => {
             const p = imgPath(key);
             if (!p) return Promise.resolve({ changed: false, key });
-            return fetchImgToCache(
-              key,
-              fbSt.ref(`users/${fbUser.uid}/${p.did}/${p.cid}.jpg`),
-              metaTimes[key] || 0,
-            );
+            // itemRef 傳 null：內部會依序試 .webp → .jpg
+            return fetchImgToCache(key, null, metaTimes[key] || 0);
           }),
         );
         results.forEach((r) => {
@@ -312,8 +503,8 @@
             const did = pref.name;
             const files = await pref.listAll();
             for (const item of files.items) {
-              const cid = item.name.replace(/\.jpe?g$/i, "");
-              keys.add(did + ":" + cid);
+              const cid = item.name.replace(/\.(jpe?g|webp)$/i, "");
+              if (cid && cid !== item.name) keys.add(did + ":" + cid);
             }
           }
         } catch (e) {
@@ -361,15 +552,17 @@
             if (!p) return;
             const id = +p.cid;
             if (Number.isNaN(id)) return;
-            items.push({ id, did: p.did });
+            items.push({ id, did: p.did, key });
           },
         );
-        for (const { id, did } of items) {
+        for (const { id, did, key } of items) {
           // 只刷新目前正在看的牌組，避免錯牌組的圖蓋到畫面上
           if (did !== deckId) continue;
           const rev = cur[0] === id ? cur[1] : undefined;
+          const gen =
+            typeof bumpImgGen === "function" ? bumpImgGen(key) : undefined;
           if (typeof softRefreshView === "function")
-            await softRefreshView(id, rev);
+            await softRefreshView(id, rev, false, gen);
         }
       }
       function userCol() {
@@ -390,20 +583,45 @@
           const col = root.collection("hist");
           const seen = new Set();
           for (const h of hist) {
-            seen.add(String(h.id));
+            const id = String(h.id);
+            seen.add(id);
+            clearHistDeleted(h.id);
             const c = jstr(h);
-            if (lastS[h.id] !== c) {
+            if (lastS[h.id] !== c && lastS[id] !== c) {
               h.u = Date.now();
-              await col.doc("h" + h.id).set({ j: JSON.stringify(h), u: h.u });
+              await col.doc("h" + h.id).set({
+                j: JSON.stringify(h),
+                id: h.id,
+                del: false,
+                u: firebase.firestore.FieldValue.serverTimestamp(),
+              });
               lastS[h.id] = c;
+              lastS[id] = c;
             }
           }
-          for (const id of Object.keys(lastS))
-            if (!seen.has(id)) {
-              await col.doc("h" + id).delete();
+          // 刪除改寫 tombstone，避免他機舊副本把紀錄「復活」
+          const delIds = new Set([
+            ...Object.keys(deletedHist || {}),
+            ...Object.keys(lastS).filter((id) => !seen.has(String(id))),
+          ]);
+          for (const id of delIds) {
+            if (seen.has(String(id))) continue;
+            const mark = deletedHist[String(id)] || Date.now();
+            deletedHist[String(id)] = mark;
+            if (lastDelS[String(id)] === mark) {
               delete lastS[id];
+              continue;
             }
+            await col.doc("h" + id).set({
+              id: isNaN(+id) ? id : +id,
+              del: true,
+              u: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            lastDelS[String(id)] = mark;
+            delete lastS[id];
+          }
           sset("tarot-hist", hist);
+          sset("tarot-hist-del", deletedHist);
           sset("tarot-known", Object.keys(lastS));
           say(tnow());
         } catch (e) {
@@ -411,33 +629,41 @@
         }
       }
       let cfgQuietUntil = 0;
+      /** 待上傳的 cfg 欄位（欄位級 merge，避免整包互蓋） */
+      const pendingCfgFields = new Set();
       /** 套用雲端設定；回傳 false 或 { cu, cs, decks } */
       function applyCloudCfg(cfg) {
-        if (!cfg || (cfg.u || 0) <= cfgU) return false;
+        if (!cfg) return false;
+        const remoteU = fbTime(cfg.u);
+        if (remoteU && remoteU <= cfgU) return false;
         try {
           const prevCu = JSON.stringify(CU),
             prevCs = JSON.stringify(CS),
             prevDecks = JSON.stringify(DECKS),
             prevDeckId = deckId;
-          const raw = JSON.parse(cfg.cu || "{}");
-          const keys = Object.keys(raw || {});
-          CU =
-            keys.length && keys.every((k) => /^\d+$/.test(k))
-              ? { rws: raw }
-              : raw || {};
-          CS = JSON.parse(cfg.cs || "{}");
+          if (cfg.cu != null) {
+            const raw = JSON.parse(cfg.cu || "{}");
+            const keys = Object.keys(raw || {});
+            CU =
+              keys.length && keys.every((k) => /^\d+$/.test(k))
+                ? { rws: raw }
+                : raw || {};
+          }
+          if (cfg.cs != null) CS = JSON.parse(cfg.cs || "{}");
           if (cfg.decks) {
             try {
               const ds = JSON.parse(cfg.decks);
               if (Array.isArray(ds) && ds.length) DECKS = ds;
-            } catch (e) {}
+            } catch (e) {
+              console.warn("雲端牌組列表解析失敗，保留本機", e);
+            }
           }
           if (cfg.deckId && DECKS.some((d) => d.id === cfg.deckId))
             deckId = cfg.deckId;
           else if (!DECKS.some((d) => d.id === deckId))
             deckId = DECKS[0].id;
           if (!CU[deckId]) CU[deckId] = {};
-          cfgU = cfg.u;
+          cfgU = Math.max(cfgU, remoteU || Date.now());
           sset("tarot-custom", CU);
           sset("tarot-cs", CS);
           sset("tarot-decks", DECKS);
@@ -476,32 +702,50 @@
       async function pullCfgLive() {
         const root = userCol();
         if (!root || syncing) return;
-        if (Date.now() < cfgQuietUntil) return;
         try {
           const snap = await root.collection("meta").doc("cfg").get();
           if (!snap.exists) return;
+          if (Date.now() < cfgQuietUntil) {
+            cfgU = Math.max(cfgU, fbTime(snap.data().u));
+            sset("tarot-cfgu", cfgU);
+            return;
+          }
           const ch = applyCloudCfg(snap.data());
           if (ch) refreshCfgUi(ch);
         } catch (e) {
           console.error("拉取設定失敗", e);
         }
       }
-      async function pushCfg() {
+      /**
+       * 上傳設定。預設只寫 pendingCfgFields（欄位 merge）；
+       * opts.all 則寫入全部欄位（進頁對齊用）。
+       */
+      async function pushCfg(opts) {
         const root = userCol();
         if (!root) return;
         if (syncing) {
           pendingCfg = true;
           return;
         }
+        const all = !!(opts && opts.all);
+        if (!all && !pendingCfgFields.size) return;
         try {
-          cfgQuietUntil = Date.now() + 3000;
-          await root.collection("meta").doc("cfg").set({
-            cu: JSON.stringify(CU),
-            cs: JSON.stringify(CS),
-            decks: JSON.stringify(DECKS),
-            deckId,
-            u: cfgU,
-          });
+          const toWrite = {
+            u: firebase.firestore.FieldValue.serverTimestamp(),
+          };
+          if (all || pendingCfgFields.has("cu"))
+            toWrite.cu = JSON.stringify(CU);
+          if (all || pendingCfgFields.has("cs"))
+            toWrite.cs = JSON.stringify(CS);
+          if (all || pendingCfgFields.has("decks"))
+            toWrite.decks = JSON.stringify(DECKS);
+          if (all || pendingCfgFields.has("deckId")) toWrite.deckId = deckId;
+          pendingCfgFields.clear();
+          const localMark = Date.now();
+          cfgU = Math.max(cfgU, localMark);
+          sset("tarot-cfgu", cfgU);
+          cfgQuietUntil = Date.now() + 4000;
+          await root.collection("meta").doc("cfg").set(toWrite, { merge: true });
           say(tnow());
         } catch (e) {
           say("同步失敗：" + fbErr(e));
@@ -516,25 +760,29 @@
           pendingHist = false;
           await pushHist();
         }
+        await flushPendingImgRetry();
       }
       const later = (k, f) => {
         clearTimeout(tm[k]);
         tm[k] = setTimeout(f, 400);
       };
-      // 本機一儲存就排程上雲（紀錄／牌義／牌陣／牌組）
+      // 本機一儲存就排程上雲（紀錄／牌義／牌陣／牌組；cfg 只標變更欄位）
       store.set = (k, v) => {
         sset(k, v);
         if (!fbUser) return;
         if (k == "tarot-hist") later("h", pushHist);
-        else if (
-          k == "tarot-custom" ||
-          k == "tarot-cs" ||
-          k == "tarot-decks" ||
-          k == "tarot-deck-id"
-        ) {
-          cfgU = Date.now();
-          sset("tarot-cfgu", cfgU);
-          later("c", pushCfg);
+        else if (k == "tarot-custom") {
+          pendingCfgFields.add("cu");
+          later("c", () => pushCfg());
+        } else if (k == "tarot-cs") {
+          pendingCfgFields.add("cs");
+          later("c", () => pushCfg());
+        } else if (k == "tarot-decks") {
+          pendingCfgFields.add("decks");
+          later("c", () => pushCfg());
+        } else if (k == "tarot-deck-id") {
+          pendingCfgFields.add("deckId");
+          later("c", () => pushCfg());
         }
       };
       async function syncAll() {
@@ -544,7 +792,8 @@
         say("同步紀錄中…");
         syncing = true;
         try {
-          const cloud = {};
+          const cloud = {},
+            cloudDel = {};
           const snap = await withTimeout(
             root.collection("hist").get(),
             20000,
@@ -552,29 +801,81 @@
           );
           snap.forEach((d) => {
             const x = d.data();
-            if (!x || !x.j) return;
+            if (!x) return;
+            const idRaw =
+              x.id != null
+                ? x.id
+                : String(d.id || "").replace(/^h/, "");
+            const id = String(idRaw);
+            const u = fbTime(x.u);
+            if (x.del) {
+              cloudDel[id] = u || 1;
+              return;
+            }
+            if (!x.j) return;
             try {
               const h = JSON.parse(x.j);
-              if (h && h.id && Array.isArray(h.cards)) cloud[h.id] = h;
-            } catch (e) {}
+              if (h && h.id != null && Array.isArray(h.cards)) {
+                h.u = Math.max(h.u || 0, u);
+                cloud[String(h.id)] = h;
+              }
+            } catch (e) {
+              console.warn("略過損毀的雲端紀錄", id, e);
+            }
           });
-          hist = hist.filter((h) => h && h.id && Array.isArray(h.cards));
-          const known = store.get("tarot-known", []).map(String),
-            out = [];
-          new Set([
+          hist = hist.filter((h) => h && h.id != null && Array.isArray(h.cards));
+          const out = [];
+          const allIds = new Set([
             ...Object.keys(cloud),
+            ...Object.keys(cloudDel),
             ...hist.map((h) => String(h.id)),
-          ]).forEach((id) => {
+            ...Object.keys(deletedHist || {}),
+          ]);
+          allIds.forEach((id) => {
             const c = cloud[id],
-              l = hist.find((x) => String(x.id) == id);
-            if (c && l) out.push((l.u || 0) > (c.u || 0) ? l : c);
-            else if (c) out.push(c);
-            else if (!known.includes(id)) out.push(l);
+              cDelU = cloudDel[id] || 0,
+              l = hist.find((x) => String(x.id) == id),
+              lDelU = deletedHist[id] || 0,
+              lU = (l && l.u) || 0,
+              cU = (c && c.u) || 0;
+            // 雲端 tombstone：除非本機內容明顯更新，否則維持刪除
+            if (cDelU) {
+              if (l && lU > cDelU) {
+                out.push(l);
+                clearHistDeleted(id);
+              } else {
+                if (l) markHistDeleted(id);
+                deletedHist[id] = Math.max(lDelU, cDelU);
+              }
+              return;
+            }
+            // 本機已刪且刪除時間 ≥ 雲端內容時間 → 不復活
+            if (lDelU && (!c || lDelU >= cU)) {
+              return;
+            }
+            if (c && l) {
+              const win = lU > cU ? l : c;
+              out.push(win);
+              clearHistDeleted(id);
+            } else if (c) {
+              out.push(c);
+              clearHistDeleted(id);
+            } else if (l) {
+              out.push(l);
+            }
           });
           out.sort((a, b) => b.id - a.id);
           hist = out;
+          persistHistDeleted();
           lastS = {};
-          Object.entries(cloud).forEach(([id, c]) => (lastS[id] = jstr(c)));
+          Object.entries(cloud).forEach(([id, c]) => {
+            if (deletedHist[id]) return;
+            lastS[id] = jstr(c);
+          });
+          lastDelS = {};
+          Object.keys(deletedHist).forEach((id) => {
+            lastDelS[id] = deletedHist[id];
+          });
           let cfg = null;
           try {
             const cfgSnap = await withTimeout(
@@ -583,14 +884,16 @@
               "設定",
             );
             if (cfgSnap.exists) cfg = cfgSnap.data();
-          } catch (e) {}
+          } catch (e) {
+            console.warn("讀取雲端設定失敗，稍後再試", e);
+          }
           let cfgCh = false;
-          if (cfg && (cfg.u || 0) > cfgU) {
+          if (cfg && fbTime(cfg.u) > cfgU) {
             cfgCh = applyCloudCfg(cfg);
-          } else if (!cfg || cfgU > (cfg.u || 0)) {
+          } else if (!cfg || cfgU > fbTime(cfg.u)) {
             say("上傳設定中…");
             syncing = false;
-            await pushCfg();
+            await pushCfg({ all: true });
             syncing = true;
           }
           say("上傳紀錄中…");
@@ -598,11 +901,15 @@
           await pushHist();
           syncing = true;
           say("同步圖片中…");
+          await flushPendingImgRetry();
           const imgResult = await pullImages();
           // 進頁時若本機已畫過牌面，勿整頁 redraw（會載完再閃一次）
           if (cfgCh) refreshCfgUi(cfgCh);
           else if (imgResult && imgResult.changed)
             await applyImgPullResult(imgResult);
+          sset("tarot-hist", hist);
+          if (typeof renderList === "function" && !isHidden($("#v-hist")))
+            renderList();
           say(tnow());
         } catch (e) {
           say("同步失敗：" + fbErr(e));
@@ -614,11 +921,40 @@
       hist = hist.filter((h) => h && h.id && Array.isArray(h.cards));
       sset("tarot-hist", hist);
       (async () => {
-        if (!fbConfigured()) return;
+        const statusEl = document.getElementById("sync-status");
+        if (statusEl) {
+          statusEl.addEventListener("click", () => {
+            if (statusEl.dataset.kind !== "err") return;
+            if (!fbUser) {
+              say("尚未登入雲端");
+              return;
+            }
+            syncAll();
+          });
+        }
+        if (!fbConfigured()) {
+          setSyncStatus("僅本機（未設定雲端）", "idle");
+          return;
+        }
         if (typeof firebase === "undefined") {
           say("Firebase SDK 載入失敗");
           return;
         }
+        window.addEventListener("offline", () => {
+          netOnline = false;
+          showIdleSyncStatus();
+        });
+        window.addEventListener("online", () => {
+          netOnline = true;
+          setSyncStatus("網路已恢復，同步中…", "busy");
+          if (fbUser) {
+            flushPendingCloud()
+              .then(() => syncAll())
+              .catch((e) => console.warn("恢復連線同步失敗", e));
+          } else showIdleSyncStatus();
+        });
+        if (!netOnline) showIdleSyncStatus();
+        else setSyncStatus("連線雲端中…", "busy");
         try {
           if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
           fbAuth = firebase.auth();
@@ -628,7 +964,24 @@
               ignoreUndefinedProperties: true,
               experimentalForceLongPolling: true,
             });
-          } catch (e) {}
+          } catch (e) {
+            // 重複 init／已設定時可能丟錯，可繼續
+            console.debug("Firestore settings 略過", e);
+          }
+          try {
+            await fbDb.enablePersistence({ synchronizeTabs: true });
+            persistenceOn = true;
+          } catch (e) {
+            persistenceOn = false;
+            if (e && e.code === "failed-precondition") {
+              console.warn("多個分頁開啟，此分頁未啟用 Firestore 離線快取");
+            } else if (e && e.code === "unimplemented") {
+              console.warn("此瀏覽器不支援 Firestore persistence");
+            } else {
+              console.warn("啟用 Firestore persistence 失敗", e);
+            }
+          }
+          if (!netOnline) showIdleSyncStatus();
           fbSt = firebase.storage();
           async function assertFirestore(u) {
             const token = await u.getIdToken();
@@ -706,7 +1059,7 @@
               unsubCfg = null;
             }
             cfgLiveSkip = true;
-            unsubCfg = root
+              unsubCfg = root
               .collection("meta")
               .doc("cfg")
               .onSnapshot(
@@ -715,8 +1068,12 @@
                     cfgLiveSkip = false;
                     return;
                   }
-                  if (syncing || Date.now() < cfgQuietUntil) return;
                   if (!snap.exists) return;
+                  if (syncing || Date.now() < cfgQuietUntil) {
+                    cfgU = Math.max(cfgU, fbTime(snap.data().u));
+                    sset("tarot-cfgu", cfgU);
+                    return;
+                  }
                   const ch = applyCloudCfg(snap.data());
                   if (ch) refreshCfgUi(ch);
                 },
@@ -757,17 +1114,20 @@
           // 切回分頁／視窗時再同步（不必整頁刷新）
           document.addEventListener("visibilitychange", () => {
             if (document.hidden || !fbUser || !fbSt || syncing) return;
+            flushPendingImgRetry();
             pullCfgLive();
             refreshImgsLive();
           });
           window.addEventListener("focus", () => {
             if (!fbUser || !fbSt || syncing) return;
+            flushPendingImgRetry();
             pullCfgLive();
             refreshImgsLive();
           });
           // 頁面開著時定期補拉（即時監聽漏掉時的後備）
           liveTimer = setInterval(() => {
             if (document.hidden || !fbUser || !fbSt || syncing) return;
+            flushPendingImgRetry();
             pullCfgLive();
             refreshImgsLive();
           }, 8000);

@@ -4,7 +4,10 @@
       (async () => {
         try {
           if (window.claude && claude.use) SM = await claude.use("sample");
-        } catch (e) {}
+        } catch (e) {
+          // 一般瀏覽器沒有 Cursor claude bridge，屬預期
+          console.debug("AI 環境不可用，將使用本機牌義彙整", e);
+        }
       })();
       if (!$("#aibox")) {
         $("#acts").insertAdjacentHTML("afterend", '<div class="detail hide" id="aibox"></div>');
@@ -22,7 +25,8 @@ const cardsOf = (a) =>
           nm = {};
         cs.forEach((x) => {
           if (x.d.id >= 22) {
-            const s = SU[Math.floor((x.d.id - 22) / 14)][0],
+            const suit = SU[Math.floor((x.d.id - 22) / 14)],
+              s = suit.z || suit[0],
               r = (x.d.id - 22) % 14;
             su[s] = (su[s] || 0) + 1;
             (nm[r] = nm[r] || []).push(x.d.z);
@@ -111,30 +115,27 @@ const cardsOf = (a) =>
             "），可稍後再試。</p>";
         }
       }
-      /* #ai 抽牌按鈕改由 #acts 事件委派處理（spreads.js） */
-      const rl0 = renderList;
-      renderList = function () {
-        rl0();
-        document.querySelectorAll("#list .entry").forEach((el) => {
-          const h = hist.find((x) => x.id == el.dataset.h),
-            row = el.querySelector(".entry-acts") || el.querySelector(".del")?.parentNode;
-          if (!row) return;
-          row.insertAdjacentHTML(
-            "afterbegin",
-            `<button class="aib">✨ ${h.ai ? "重新" : ""}統整解析</button>`,
-          );
+      /* #ai 抽牌按鈕改由 #acts 事件委派；紀錄列由 enhanceHistEntry 單筆掛載 */
+      function enhanceHistEntry(el, h) {
+        if (!el || !h) return;
+        if (el.querySelector(".aib")) return;
+        const row =
+          el.querySelector(".entry-acts") ||
+          el.querySelector(".del")?.parentNode;
+        if (!row) return;
+        row.insertAdjacentHTML(
+          "afterbegin",
+          `<button type="button" class="aib">✨ ${h.ai ? "重新" : ""}統整解析</button>`,
+        );
+        if (!el.querySelector(".aibx")) {
           row.insertAdjacentHTML(
             "afterend",
             `<div class="detail aibx${h.ai ? "" : " hide"}">${h.ai ? view(cardsOf(h.cards), h.ai) : ""}</div>`,
           );
-          el.querySelector(".aib").onclick = () =>
-            analyze(h, el.querySelector(".aibx"), save);
-        });
-      };
-      /* ===== v5: 花色圖示 ===== */
-      SU[2][2] = "💨";
-      SU[3][2] = "🪨";
-      D.forEach((c) => {
-        if (c.id >= 22) c.sym = SU[Math.floor((c.id - 22) / 14)][2];
-      });
+        }
+        const aib = el.querySelector(".aib");
+        if (aib)
+          aib.onclick = () => analyze(h, el.querySelector(".aibx"), save);
+      }
+      /* 花色符號已在 data.js 的 SU.sym 設定 */
       redraw();

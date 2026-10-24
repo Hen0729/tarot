@@ -1,77 +1,4 @@
-const MA = [
-        { z: "愚者", e: "The Fool", u: "新開始、自由、冒險", r: "魯莽、猶豫、天真過頭" },
-        { z: "魔術師", e: "The Magician", u: "創造力、行動力、善用資源", r: "操弄、欺瞞、才能浪費" },
-        { z: "女祭司", e: "The High Priestess", u: "直覺、潛意識、神祕", r: "忽視直覺、隱藏動機" },
-        { z: "皇后", e: "The Empress", u: "豐盛、滋養、感官享受", r: "過度依賴、停滯、過度保護" },
-        { z: "皇帝", e: "The Emperor", u: "權威、秩序、穩定", r: "專制、僵化、失控" },
-        { z: "教皇", e: "The Hierophant", u: "傳統、信仰、指引", r: "打破常規、盲從" },
-        { z: "戀人", e: "The Lovers", u: "愛、選擇、和諧", r: "失衡、錯誤抉擇" },
-        { z: "戰車", e: "The Chariot", u: "意志、勝利、前進", r: "失控、方向不明" },
-        { z: "力量", e: "Strength", u: "勇氣、耐心、柔韌", r: "自我懷疑、軟弱" },
-        { z: "隱者", e: "The Hermit", u: "內省、獨處、智慧", r: "孤立、逃避" },
-        { z: "命運之輪", e: "Wheel of Fortune", u: "轉機、循環、命運", r: "厄運、抗拒改變" },
-        { z: "正義", e: "Justice", u: "公正、因果、真相", r: "不公、逃避責任" },
-        { z: "倒吊人", e: "The Hanged Man", u: "犧牲、換位思考、暫停", r: "拖延、無謂犧牲" },
-        { z: "死神", e: "Death", u: "結束、轉化、重生", r: "抗拒改變、停滯" },
-        { z: "節制", e: "Temperance", u: "平衡、調和、耐心", r: "失衡、過度" },
-        { z: "惡魔", e: "The Devil", u: "束縛、慾望、執著", r: "解脫、覺醒" },
-        { z: "高塔", e: "The Tower", u: "突變、崩解、覺醒", r: "逃過一劫、延遲的災難" },
-        { z: "星星", e: "The Star", u: "希望、療癒、靈感", r: "失望、失去信心" },
-        { z: "月亮", e: "The Moon", u: "不安、幻象、潛意識", r: "迷霧散去、釐清恐懼" },
-        { z: "太陽", e: "The Sun", u: "喜悅、成功、活力", r: "過度樂觀、短暫陰霾" },
-        { z: "審判", e: "Judgement", u: "覺醒、召喚、重生", r: "自我懷疑、拒絕反省" },
-        { z: "世界", e: "The World", u: "圓滿、完成、整合", r: "未竟、遲滯" },
-      ];
-      const SU = [
-        ["權杖", "Wands", "🔥", "事業、熱情與行動"],
-        ["聖杯", "Cups", "💧", "情感與人際關係"],
-        ["寶劍", "Swords", "🌬️", "思想、溝通與衝突"],
-        ["錢幣", "Pentacles", "🌍", "金錢、工作與物質"],
-      ];
-      const RK = [
-        { z: "王牌", e: "Ace", u: "新的起點、潛能萌芽", r: "延遲、錯失時機" },
-        { z: "二", e: "Two", u: "抉擇、平衡、合作", r: "猶豫、失衡" },
-        { z: "三", e: "Three", u: "成長、合作、初步成果", r: "受阻、意見分歧" },
-        { z: "四", e: "Four", u: "穩定、休憩、鞏固", r: "停滯、不安" },
-        { z: "五", e: "Five", u: "衝突、挑戰、損失", r: "緩和、走出低谷" },
-        { z: "六", e: "Six", u: "和諧、過渡、獲得支援", r: "停滯、難以前進" },
-        { z: "七", e: "Seven", u: "堅持、評估、考驗", r: "動搖、白費力氣" },
-        { z: "八", e: "Eight", u: "行動、進展、專注", r: "受阻、分心" },
-        { z: "九", e: "Nine", u: "接近完成、韌性、累積", r: "疲憊、過度防備" },
-        { z: "十", e: "Ten", u: "圓滿、終點、承擔", r: "重擔、結束後的失落" },
-        { z: "侍者", e: "Page", u: "好奇、消息、學習", r: "不成熟、壞消息" },
-        { z: "騎士", e: "Knight", u: "追求、行動、衝勁", r: "躁進、半途而廢" },
-        { z: "王后", e: "Queen", u: "成熟、關懷、內在掌握", r: "情緒化、失衡" },
-        { z: "國王", e: "King", u: "掌控、責任、領導", r: "濫權、專橫" },
-      ];
-      const COURT_N = ["P", "Kn", "Q", "K"];
-      const D = [];
-      MA.forEach((m, i) => {
-        D.push({
-          id: i,
-          z: m.z,
-          e: m.e,
-          sym: "✦",
-          n: i,
-          u: m.u,
-          r: m.r,
-          sub: "大阿爾卡納",
-        });
-      });
-      SU.forEach((su, si) =>
-        RK.forEach((rk, ri) => {
-          D.push({
-            id: 22 + si * 14 + ri,
-            z: su[0] + rk.z,
-            e: rk.e + " of " + su[1],
-            sym: su[2],
-            n: ri < 10 ? (ri === 0 ? "A" : ri + 1) : COURT_N[ri - 10],
-            u: su[3] + "面向：" + rk.u,
-            r: su[3] + "面向：" + rk.r,
-            sub: "小阿爾卡納・" + su[0],
-          });
-        }),
-      );
+/* 牌資料由 js/data.js（main.js installDataGlobals）提供：MA / SU / RK / D */
       const $ = (s) => document.querySelector(s),
         mem = {};
       /** 密碼學安全亂數：回傳 [0, 1) */
@@ -138,6 +65,16 @@ const MA = [
       function pinImg(key) {
         if (key) pinnedImgs.add(key);
       }
+      /** 換圖世代：較新的操作勝出，舊的 await 結束後不寫入 DOM */
+      const imgGen = Object.create(null);
+      function bumpImgGen(key) {
+        if (!key) return 0;
+        imgGen[key] = (imgGen[key] || 0) + 1;
+        return imgGen[key];
+      }
+      function imgGenOf(key) {
+        return (key && imgGen[key]) || 0;
+      }
       function getCU(id) {
         if (!CU[deckId]) CU[deckId] = {};
         return CU[deckId][id] || {};
@@ -166,6 +103,23 @@ const MA = [
         if (!el) return;
         setHidden(el, true);
         el.innerHTML = "";
+      }
+      /** 可見提示（上傳失敗等）；不走 hidePanel，避免清掉文案前閃一下 */
+      function toast(msg, ms) {
+        if (!msg) return;
+        let el = $("#toast");
+        if (!el) {
+          el = document.createElement("div");
+          el.id = "toast";
+          el.className = "hide";
+          el.hidden = true;
+          el.setAttribute("role", "status");
+          document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        setHidden(el, false);
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => setHidden(el, true), ms || 3600);
       }
       /** 兩段確認：第一次改文案，第二次執行 onConfirm */
       async function armConfirm(btn, onConfirm, ask) {
@@ -215,7 +169,9 @@ const MA = [
           armConfirm(btn, async () => {
             try {
               await remImg(cid);
-            } catch (err) {}
+            } catch (err) {
+              console.warn("刪除牌面失敗", cid, err);
+            }
             softRefreshView(cid, rev);
           });
           return;
@@ -479,9 +435,14 @@ const MA = [
             const t = db.transaction("img", "readwrite"),
               x = f(t.objectStore("img"));
             t.oncomplete = () => r(x);
-            t.onerror = () => r();
+            t.onerror = () => {
+              console.warn("IndexedDB 交易失敗");
+              r();
+            };
           });
-        } catch (e) {}
+        } catch (e) {
+          console.warn("IndexedDB 操作失敗", e);
+        }
       };
       function redraw() {
         $("#deck").innerHTML = D.map((c) => face(c, false, false)).join("");
@@ -499,8 +460,8 @@ const MA = [
           i.src = src;
         });
       }
-      /** 換圖：先解碼到新節點再一次置換，避免改 src 時舊畫面被清掉閃一下 */
-      async function swapImgSrc(img, src) {
+      /** 換圖：先解碼到新節點再一次置換；still() 為 false 時中止，不寫入 DOM */
+      async function swapImgSrc(img, src, still) {
         if (!img || !src) return img;
         if (img.getAttribute("src") === src) return img;
         img.dataset.hold = "1";
@@ -515,29 +476,44 @@ const MA = [
             next.onerror = no;
             next.src = src;
           });
+          if (still && !still()) {
+            img.dataset.hold = "0";
+            return img;
+          }
           if (next.decode)
             try {
               await next.decode();
-            } catch (e) {}
+            } catch (e) {
+              // decode 失敗仍可用已 load 的圖
+              console.debug("img.decode 略過", e);
+            }
+          if (still && !still()) {
+            img.dataset.hold = "0";
+            return img;
+          }
           img.replaceWith(next);
           next.dataset.hold = "0";
           return next;
         } catch (e) {
+          console.warn("換圖載入失敗，保留原圖", e);
           img.dataset.hold = "0";
           return img;
         }
       }
       /** 就地換／插入牌面圖：圖先解碼好再進 DOM；eager 用於本機 data URL 立刻顯示 */
-      async function paintCardImg(el, src, eager) {
+      async function paintCardImg(el, src, eager, still) {
         if (!el || !src) return;
+        if (still && !still()) return;
         const isData = src.indexOf("data:") === 0;
         if (!eager || !isData) {
           try {
             await preloadSrc(src);
           } catch (e) {
+            console.warn("預載牌面失敗", e);
             return;
           }
         }
+        if (still && !still()) return;
         el.classList.add("im");
         let img = el.querySelector("img");
         if (!img) {
@@ -556,9 +532,9 @@ const MA = [
           // 本機 data URL：直接換，避免多餘等待
           img.src = src;
         } else {
-          img = await swapImgSrc(img, src);
+          img = await swapImgSrc(img, src, still);
         }
-        if (!img) return;
+        if (!img || (still && !still())) return;
         img.onerror = () => {
           if (img.dataset.hold === "1") return;
           const card = img.closest(".card");
@@ -590,20 +566,29 @@ const MA = [
             }),
           );
       }
-      async function softRefreshView(id, rev, eager) {
+      async function softRefreshView(id, rev, eager, gen) {
         if (id == null || id === undefined || editing) return;
+        const key = ik(id);
+        const myGen = gen != null ? gen : imgGenOf(key);
+        const still = () => imgGenOf(key) === myGen;
         const im = getImg(id);
         const useEager = !!eager && im && im.indexOf("data:") === 0;
         if (im && !useEager) {
           try {
             await preloadSrc(im);
-          } catch (e) {}
+          } catch (e) {
+            console.warn("刷新前預載失敗", id, e);
+          }
         }
+        if (!still()) return;
         // 縮圖：只動 img，不整卡重繪
         const cards = [...document.querySelectorAll(`.card[data-id="${id}"]`)];
         if (im)
-          await Promise.all(cards.map((el) => paintCardImg(el, im, useEager)));
+          await Promise.all(
+            cards.map((el) => paintCardImg(el, im, useEager, still)),
+          );
         else cards.forEach((el) => clearCardImg(el));
+        if (!still()) return;
         const box = detBox();
         if (!isPanelOpen(box) || cur[0] !== id) return;
         if (!im) {
@@ -617,18 +602,21 @@ const MA = [
         }
         let img = det.querySelector("img");
         if (!img) {
+          if (!still()) return;
           img = document.createElement("img");
           img.alt = "";
           img.src = im;
           if (rev === true) img.classList.add("rev");
           det.insertBefore(img, det.firstChild);
         } else if (useEager) {
+          if (!still()) return;
           img.classList.toggle("rev", rev === true);
           img.src = im;
         } else {
           img.classList.toggle("rev", rev === true);
-          img = await swapImgSrc(img, im);
+          img = await swapImgSrc(img, im, still);
         }
+        if (!still()) return;
         if (img) img.classList.toggle("rev", rev === true);
         const ci = box.querySelector("#ci");
         if (ci) ci.textContent = "更換牌面圖";
@@ -650,6 +638,16 @@ const MA = [
         if (id == null || id === undefined || editing) return;
         if (isPanelOpen(detBox())) show(id, rev);
       }
+      /** canvas → WebP data URL；不支援時退回 JPEG */
+      function canvasToCardDataUrl(cv) {
+        try {
+          const w = cv.toDataURL("image/webp", 0.82);
+          if (w && w.indexOf("data:image/webp") === 0) return w;
+        } catch (e) {
+          console.debug("WebP 編碼不可用，改用 JPEG", e);
+        }
+        return cv.toDataURL("image/jpeg", 0.85);
+      }
       const shrink = (f) =>
         new Promise((ok, no) => {
           const u = URL.createObjectURL(f),
@@ -661,7 +659,7 @@ const MA = [
             cv.height = i.height * k;
             cv.getContext("2d").drawImage(i, 0, 0, cv.width, cv.height);
             URL.revokeObjectURL(u);
-            ok(cv.toDataURL("image/jpeg", 0.85));
+            ok(canvasToCardDataUrl(cv));
           };
           i.onerror = no;
           i.src = u;
@@ -689,26 +687,33 @@ const MA = [
       }
       async function addImg(id, f) {
         const d = await shrink(f),
-          key = ik(id);
+          key = ik(id),
+          gen = bumpImgGen(key);
         IMG[key] = d;
         pinImg(key);
         const now = Date.now();
         // 標記本機剛上傳，避免同步瞬間用舊雲端圖蓋回來
         if (typeof imgMetaApplied !== "undefined") imgMetaApplied[key] = now;
         idbOp((s) => s.put(d, key));
-        return { key, dataUrl: d };
+        return { key, dataUrl: d, gen };
       }
       async function remImg(id) {
         const key = ik(id);
+        bumpImgGen(key);
         pinnedImgs.delete(key);
         delete IMG[key];
         idbOp((s) => s.delete(key));
-        await deleteImgCloud(key);
+        try {
+          await deleteImgCloud(key);
+        } catch (e) {
+          toast("刪除雲端牌面失敗，已保留本機清除");
+        }
       }
       async function remDeckImgs(did) {
         Object.keys(IMG)
           .filter((k) => k.startsWith(did + ":"))
           .forEach((k) => {
+            bumpImgGen(k);
             delete IMG[k];
             idbOp((s) => s.delete(k));
           });
@@ -748,8 +753,21 @@ const MA = [
       fillDeckSel();
       $("#dsel").onchange = () => setDeck($("#dsel").value);
       $("#duse").onchange = () => setDeck($("#duse").value);
-      $("#dadd").onclick = () => {
-        const name = (prompt("新牌組名稱", "我的牌組") || "").trim();
+      $("#dadd").onclick = async () => {
+        const ask =
+          typeof promptName === "function"
+            ? promptName
+            : (o) =>
+                Promise.resolve(
+                  (window.prompt(o.title || "", o.value || "") || "").trim() ||
+                    null,
+                );
+        const name = await ask({
+          title: "新增牌組",
+          value: "我的牌組",
+          placeholder: "牌組名稱",
+          okLabel: "新增",
+        });
         if (!name) return;
         const id = "d" + Date.now();
         DECKS.push({ id, name });
@@ -758,10 +776,23 @@ const MA = [
         saveDecks();
         setDeck(id);
       };
-      $("#dren").onclick = () => {
+      $("#dren").onclick = async () => {
         const d = DECKS.find((x) => x.id === deckId);
         if (!d) return;
-        const name = (prompt("重新命名牌組", d.name) || "").trim();
+        const ask =
+          typeof promptName === "function"
+            ? promptName
+            : (o) =>
+                Promise.resolve(
+                  (window.prompt(o.title || "", o.value || "") || "").trim() ||
+                    null,
+                );
+        const name = await ask({
+          title: "重新命名牌組",
+          value: d.name,
+          placeholder: "新名稱",
+          okLabel: "儲存",
+        });
         if (!name || name === d.name) return;
         d.name = name;
         saveDecks();
@@ -770,7 +801,7 @@ const MA = [
       };
       $("#ddel").onclick = async function () {
         if (DECKS.length <= 1) {
-          alert("至少保留一個牌組類別");
+          toast("至少保留一個牌組類別");
           return;
         }
         await armConfirm(
@@ -791,23 +822,36 @@ const MA = [
       };
       $("#fi").onchange = async (e) => {
         const packedList = [];
+        let skip = 0;
         for (const f of e.target.files) {
           const id = idOf(f.name);
-          if (id == null) continue;
+          if (id == null) {
+            skip++;
+            continue;
+          }
           try {
             const packed = await addImg(id, f);
             if (packed) packedList.push(packed);
           } catch (x) {
             console.error("批次上傳失敗", f.name, x);
+            toast("無法處理：" + f.name);
           }
         }
         e.target.value = "";
         redraw();
+        if (skip && !packedList.length)
+          toast("沒有可對應的檔名（需含牌號）");
+        else if (skip)
+          toast("已略過 " + skip + " 個無法對應的檔名");
         // 畫面先更新完，再背景上傳雲端（避免大圖 putString 卡住介面）
         for (const packed of packedList) {
+          if (imgGenOf(packed.key) !== packed.gen) continue;
           try {
             await pushImgCloud(packed.key, packed.dataUrl);
-          } catch (x) {}
+          } catch (x) {
+            // pushImgCloud 已 toast + 排入重試
+            console.warn("批次雲端上傳失敗", packed.key, x);
+          }
         }
       };
       $("#f1").onchange = async (e) => {
@@ -820,13 +864,17 @@ const MA = [
         try {
           packed = await addImg(id, f);
         } catch (x) {
+          console.warn("讀取牌面圖失敗", x);
+          toast("無法讀取此圖片");
           return;
         }
         // 先完成本機顯示，再背景上傳（上傳大圖時不要擋住出圖）
-        await softRefreshView(id, rev, true);
+        await softRefreshView(id, rev, true, packed.gen);
         if (packed) {
+          if (imgGenOf(packed.key) !== packed.gen) return;
           pushImgCloud(packed.key, packed.dataUrl).catch((err) => {
-            console.error("牌面雲端上傳失敗", packed.key, err);
+            // pushImgCloud 已 toast + 排入重試
+            console.warn("牌面雲端上傳失敗", packed.key, err);
           });
         }
       };

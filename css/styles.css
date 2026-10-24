@@ -53,8 +53,34 @@
       }
       h1 {
         font-size: 22px;
-        margin: 4px 0 12px;
+        margin: 4px 0 4px;
         color: var(--acc);
+      }
+      .sync-status {
+        font-size: 12px;
+        color: var(--mut);
+        margin: 0 0 10px;
+        min-height: 1.2em;
+        cursor: default;
+        user-select: none;
+      }
+      .sync-status[data-kind="busy"] {
+        color: var(--acc);
+      }
+      .sync-status[data-kind="ok"] {
+        color: var(--mut);
+      }
+      .sync-status[data-kind="err"] {
+        color: #b33;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .sync-status[data-kind="idle"] {
+        color: var(--mut);
+      }
+      .sync-status[data-kind="offline"] {
+        color: #a67c00;
       }
       nav {
         display: flex;
@@ -258,6 +284,52 @@
       }
       .hide {
         display: none;
+      }
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: max(24px, env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        z-index: 200;
+        max-width: min(92vw, 420px);
+        padding: 10px 16px;
+        border-radius: 8px;
+        background: var(--fg);
+        color: var(--bg);
+        font-size: 14px;
+        line-height: 1.4;
+        text-align: center;
+        pointer-events: none;
+      }
+      .dlg {
+        position: fixed;
+        inset: 0;
+        z-index: 300;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(20, 16, 28, 0.45);
+      }
+      .dlg.hide {
+        display: none;
+      }
+      .dlg-card {
+        width: min(100%, 360px);
+        background: var(--card);
+        color: var(--fg);
+        border: 1px solid var(--bd);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .dlg-card h3 {
+        margin: 0 0 10px;
+        font-size: 17px;
+        color: var(--acc);
+      }
+      .dlg-card input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
       }
       .card img {
         width: 100%;
