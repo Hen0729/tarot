@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>偉特塔羅 · 抽牌與筆記</title>
-    <link rel="stylesheet" href="css/styles.css?v=20261023r" />
+    <link rel="stylesheet" href="css/styles.css?v=20261024e" />
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -54,12 +54,16 @@
       <div class="tip hide" id="tip" hidden></div>
     </main>
     <script>
-      // 捕捉階段先清下方文字卡，避免舊快取 JS 清不掉
+      // 捕捉階段先清面板（走 clearDrawPanels；舊快取沒有時退回 hide 類別）
       document.addEventListener(
         "click",
         function (e) {
           var t = e.target;
           if (!t || t.id !== "go") return;
+          if (typeof clearDrawPanels === "function") {
+            clearDrawPanels();
+            return;
+          }
           ["det", "aibox", "deck-det", "tip"].forEach(function (id) {
             var el = document.getElementById(id);
             if (!el) return;
@@ -72,10 +76,10 @@
         true,
       );
     </script>
-    <script src="js/config.js?v=20261023x"></script>
-    <script src="js/core.js?v=20261023x"></script>
-    <script src="js/spreads.js?v=20261023x"></script>
-    <script src="js/ai.js?v=20261023x"></script>
-    <script src="js/sync.js?v=20261023x"></script>
+    <script src="js/config.js?v=20261024e"></script>
+    <script src="js/core.js?v=20261024e"></script>
+    <script src="js/spreads.js?v=20261024e"></script>
+    <script src="js/ai.js?v=20261024e"></script>
+    <script src="js/sync.js?v=20261024e"></script>
   </body>
 </html>

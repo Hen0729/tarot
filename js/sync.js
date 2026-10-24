@@ -464,15 +464,14 @@
           }
           if ((changes.cu || changes.decks) && cur[0] != null && !editing)
             show(cur[0], cur[1], { keepImg: true });
-          if (changes.cs && !$("#v-hist").classList.contains("hide"))
-            renderList();
+          if (changes.cs && !isHidden($("#v-hist"))) renderList();
           return;
         }
         fillSp();
         fillDeckSel();
         redraw();
         refreshView(cur[0], cur[1]);
-        if (!$("#v-hist").classList.contains("hide")) renderList();
+        if (!isHidden($("#v-hist"))) renderList();
       }
       async function pullCfgLive() {
         const root = userCol();

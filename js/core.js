@@ -1,38 +1,73 @@
-const MA =
-        "愚者|The Fool|新開始、自由、冒險|魯莽、猶豫、天真過頭;魔術師|The Magician|創造力、行動力、善用資源|操弄、欺瞞、才能浪費;女祭司|The High Priestess|直覺、潛意識、神祕|忽視直覺、隱藏動機;皇后|The Empress|豐盛、滋養、感官享受|過度依賴、停滯、過度保護;皇帝|The Emperor|權威、秩序、穩定|專制、僵化、失控;教皇|The Hierophant|傳統、信仰、指引|打破常規、盲從;戀人|The Lovers|愛、選擇、和諧|失衡、錯誤抉擇;戰車|The Chariot|意志、勝利、前進|失控、方向不明;力量|Strength|勇氣、耐心、柔韌|自我懷疑、軟弱;隱者|The Hermit|內省、獨處、智慧|孤立、逃避;命運之輪|Wheel of Fortune|轉機、循環、命運|厄運、抗拒改變;正義|Justice|公正、因果、真相|不公、逃避責任;倒吊人|The Hanged Man|犧牲、換位思考、暫停|拖延、無謂犧牲;死神|Death|結束、轉化、重生|抗拒改變、停滯;節制|Temperance|平衡、調和、耐心|失衡、過度;惡魔|The Devil|束縛、慾望、執著|解脫、覺醒;高塔|The Tower|突變、崩解、覺醒|逃過一劫、延遲的災難;星星|The Star|希望、療癒、靈感|失望、失去信心;月亮|The Moon|不安、幻象、潛意識|迷霧散去、釐清恐懼;太陽|The Sun|喜悅、成功、活力|過度樂觀、短暫陰霾;審判|Judgement|覺醒、召喚、重生|自我懷疑、拒絕反省;世界|The World|圓滿、完成、整合|未竟、遲滯".split(
-          ";",
-        );
+const MA = [
+        { z: "愚者", e: "The Fool", u: "新開始、自由、冒險", r: "魯莽、猶豫、天真過頭" },
+        { z: "魔術師", e: "The Magician", u: "創造力、行動力、善用資源", r: "操弄、欺瞞、才能浪費" },
+        { z: "女祭司", e: "The High Priestess", u: "直覺、潛意識、神祕", r: "忽視直覺、隱藏動機" },
+        { z: "皇后", e: "The Empress", u: "豐盛、滋養、感官享受", r: "過度依賴、停滯、過度保護" },
+        { z: "皇帝", e: "The Emperor", u: "權威、秩序、穩定", r: "專制、僵化、失控" },
+        { z: "教皇", e: "The Hierophant", u: "傳統、信仰、指引", r: "打破常規、盲從" },
+        { z: "戀人", e: "The Lovers", u: "愛、選擇、和諧", r: "失衡、錯誤抉擇" },
+        { z: "戰車", e: "The Chariot", u: "意志、勝利、前進", r: "失控、方向不明" },
+        { z: "力量", e: "Strength", u: "勇氣、耐心、柔韌", r: "自我懷疑、軟弱" },
+        { z: "隱者", e: "The Hermit", u: "內省、獨處、智慧", r: "孤立、逃避" },
+        { z: "命運之輪", e: "Wheel of Fortune", u: "轉機、循環、命運", r: "厄運、抗拒改變" },
+        { z: "正義", e: "Justice", u: "公正、因果、真相", r: "不公、逃避責任" },
+        { z: "倒吊人", e: "The Hanged Man", u: "犧牲、換位思考、暫停", r: "拖延、無謂犧牲" },
+        { z: "死神", e: "Death", u: "結束、轉化、重生", r: "抗拒改變、停滯" },
+        { z: "節制", e: "Temperance", u: "平衡、調和、耐心", r: "失衡、過度" },
+        { z: "惡魔", e: "The Devil", u: "束縛、慾望、執著", r: "解脫、覺醒" },
+        { z: "高塔", e: "The Tower", u: "突變、崩解、覺醒", r: "逃過一劫、延遲的災難" },
+        { z: "星星", e: "The Star", u: "希望、療癒、靈感", r: "失望、失去信心" },
+        { z: "月亮", e: "The Moon", u: "不安、幻象、潛意識", r: "迷霧散去、釐清恐懼" },
+        { z: "太陽", e: "The Sun", u: "喜悅、成功、活力", r: "過度樂觀、短暫陰霾" },
+        { z: "審判", e: "Judgement", u: "覺醒、召喚、重生", r: "自我懷疑、拒絕反省" },
+        { z: "世界", e: "The World", u: "圓滿、完成、整合", r: "未竟、遲滯" },
+      ];
       const SU = [
         ["權杖", "Wands", "🔥", "事業、熱情與行動"],
         ["聖杯", "Cups", "💧", "情感與人際關係"],
         ["寶劍", "Swords", "🌬️", "思想、溝通與衝突"],
         ["錢幣", "Pentacles", "🌍", "金錢、工作與物質"],
       ];
-      const RK =
-        "王牌|Ace|新的起點、潛能萌芽|延遲、錯失時機;二|Two|抉擇、平衡、合作|猶豫、失衡;三|Three|成長、合作、初步成果|受阻、意見分歧;四|Four|穩定、休憩、鞏固|停滯、不安;五|Five|衝突、挑戰、損失|緩和、走出低谷;六|Six|和諧、過渡、獲得支援|停滯、難以前進;七|Seven|堅持、評估、考驗|動搖、白費力氣;八|Eight|行動、進展、專注|受阻、分心;九|Nine|接近完成、韌性、累積|疲憊、過度防備;十|Ten|圓滿、終點、承擔|重擔、結束後的失落;侍者|Page|好奇、消息、學習|不成熟、壞消息;騎士|Knight|追求、行動、衝勁|躁進、半途而廢;王后|Queen|成熟、關懷、內在掌握|情緒化、失衡;國王|King|掌控、責任、領導|濫權、專橫".split(
-          ";",
-        );
+      const RK = [
+        { z: "王牌", e: "Ace", u: "新的起點、潛能萌芽", r: "延遲、錯失時機" },
+        { z: "二", e: "Two", u: "抉擇、平衡、合作", r: "猶豫、失衡" },
+        { z: "三", e: "Three", u: "成長、合作、初步成果", r: "受阻、意見分歧" },
+        { z: "四", e: "Four", u: "穩定、休憩、鞏固", r: "停滯、不安" },
+        { z: "五", e: "Five", u: "衝突、挑戰、損失", r: "緩和、走出低谷" },
+        { z: "六", e: "Six", u: "和諧、過渡、獲得支援", r: "停滯、難以前進" },
+        { z: "七", e: "Seven", u: "堅持、評估、考驗", r: "動搖、白費力氣" },
+        { z: "八", e: "Eight", u: "行動、進展、專注", r: "受阻、分心" },
+        { z: "九", e: "Nine", u: "接近完成、韌性、累積", r: "疲憊、過度防備" },
+        { z: "十", e: "Ten", u: "圓滿、終點、承擔", r: "重擔、結束後的失落" },
+        { z: "侍者", e: "Page", u: "好奇、消息、學習", r: "不成熟、壞消息" },
+        { z: "騎士", e: "Knight", u: "追求、行動、衝勁", r: "躁進、半途而廢" },
+        { z: "王后", e: "Queen", u: "成熟、關懷、內在掌握", r: "情緒化、失衡" },
+        { z: "國王", e: "King", u: "掌控、責任、領導", r: "濫權、專橫" },
+      ];
+      const COURT_N = ["P", "Kn", "Q", "K"];
       const D = [];
-      MA.forEach((s, i) => {
-        const [z, e, u, r] = s.split("|");
-        D.push({ id: i, z, e, sym: "✦", n: i, u, r, sub: "大阿爾卡納" });
+      MA.forEach((m, i) => {
+        D.push({
+          id: i,
+          z: m.z,
+          e: m.e,
+          sym: "✦",
+          n: i,
+          u: m.u,
+          r: m.r,
+          sub: "大阿爾卡納",
+        });
       });
       SU.forEach((su, si) =>
-        RK.forEach((s, ri) => {
-          const [z, e, u, r] = s.split("|");
+        RK.forEach((rk, ri) => {
           D.push({
             id: 22 + si * 14 + ri,
-            z: su[0] + z,
-            e: (ri < 10 && ri > 0 ? e : e) + " of " + su[1],
+            z: su[0] + rk.z,
+            e: rk.e + " of " + su[1],
             sym: su[2],
-            n:
-              ri < 10
-                ? ri == 0
-                  ? "A"
-                  : ri + 1
-                : ["P", "Kn", "Q", "K"][ri - 10],
-            u: su[3] + "面向：" + u,
-            r: su[3] + "面向：" + r,
+            n: ri < 10 ? (ri === 0 ? "A" : ri + 1) : COURT_N[ri - 10],
+            u: su[3] + "面向：" + rk.u,
+            r: su[3] + "面向：" + rk.r,
             sub: "小阿爾卡納・" + su[0],
           });
         }),
@@ -107,38 +142,104 @@ const MA =
         if (!CU[deckId]) CU[deckId] = {};
         return CU[deckId][id] || {};
       }
+      /** 顯示／隱藏只走這裡：.hide 為準，並同步 hidden、清掉殘留 inline display */
+      function setHidden(el, yes) {
+        if (!el) return;
+        el.classList.toggle("hide", !!yes);
+        el.hidden = !!yes;
+        el.style.display = yes ? "none" : "";
+      }
+      function isHidden(el) {
+        return !el || el.classList.contains("hide");
+      }
+      function isPanelOpen(el) {
+        return !!el && !isHidden(el);
+      }
       const detBox = () =>
-        !$("#v-deck").classList.contains("hide") && $("#deck-det")
+        !isHidden($("#v-deck")) && $("#deck-det")
           ? $("#deck-det")
           : $("#det");
       function revealPanel(el) {
-        if (!el) return;
-        el.hidden = false;
-        el.style.display = "";
-        el.classList.remove("hide");
+        setHidden(el, false);
       }
-      function bindDetActions(id, rev) {
-        if ($("#ed")) $("#ed").onclick = edit;
-        if ($("#ci"))
-          $("#ci").onclick = () => {
-            imgTarget = id;
-            $("#f1").click();
-          };
-        if ($("#cd"))
-          $("#cd").onclick = async function () {
-            if (this.dataset.s) {
-              try {
-                await remImg(id);
-              } catch (e) {}
-              softRefreshView(id, rev);
-            } else {
-              this.dataset.s = 1;
-              this.textContent = "再按一次確認刪除";
-            }
-          };
+      function hidePanel(el) {
+        if (!el) return;
+        setHidden(el, true);
+        el.innerHTML = "";
+      }
+      /** 兩段確認：第一次改文案，第二次執行 onConfirm */
+      async function armConfirm(btn, onConfirm, ask) {
+        if (!btn) return false;
+        if (btn.dataset.s) {
+          await onConfirm.call(btn);
+          return true;
+        }
+        btn.dataset.s = 1;
+        btn.textContent = ask || "再按一次確認刪除";
+        return false;
+      }
+      function saveEditMeanings() {
+        const id = cur[0];
+        if (id == null || !$("#eu")) return;
+        const v = {
+          u: $("#eu").value.trim(),
+          r: $("#er").value.trim(),
+          n: $("#en").value.trim(),
+        };
+        if (!CU[deckId]) CU[deckId] = {};
+        if (v.u || v.r || v.n) CU[deckId][id] = v;
+        else delete CU[deckId][id];
+        store.set("tarot-custom", CU);
+        editing = false;
+        show(cur[0], cur[1], { keepImg: true });
+      }
+      /** 詳情面板按鈕：委派一次，重繪後不必重綁 */
+      function onDetPanelClick(e) {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+        const id = btn.id;
+        if (id === "ed") {
+          edit();
+          return;
+        }
+        if (id === "ci") {
+          if (cur[0] == null) return;
+          imgTarget = cur[0];
+          $("#f1").click();
+          return;
+        }
+        if (id === "cd") {
+          if (cur[0] == null) return;
+          const cid = cur[0],
+            rev = cur[1];
+          armConfirm(btn, async () => {
+            try {
+              await remImg(cid);
+            } catch (err) {}
+            softRefreshView(cid, rev);
+          });
+          return;
+        }
+        if (id === "es") {
+          saveEditMeanings();
+          return;
+        }
+        if (id === "ec") {
+          editing = false;
+          show(cur[0], cur[1], { keepImg: true });
+        }
+      }
+      ["det", "deck-det"].forEach((pid) => {
+        const el = document.getElementById(pid);
+        if (el) el.addEventListener("click", onDetPanelClick);
+      });
+      function meaningsHtml(u) {
+        u = u || {};
+        if (!(u.u || u.r || u.n)) return "";
+        return `<div class="pm"><b>🌙 我的牌義</b>${u.u ? `<p><b>正位：</b>${esc(u.u)}</p>` : ""}${u.r ? `<p><b>逆位：</b>${esc(u.r)}</p>` : ""}${u.n ? `<p><b>心得：</b>${esc(u.n)}</p>` : ""}</div>`;
       }
       function dbodyHtml(c, u, has, im, rev) {
-        return `<div class="dbody"><h3>${c.sym} ${c.z} <small class="dim">${c.e}・${c.sub}・${esc(deckName(deckId))}</small></h3><p class="${rev !== true ? "hl" : "dim"}"><b>正位：</b>${c.u}</p><p class="${rev === true ? "hl" : "dim"}"><b>逆位：</b>${c.r}</p>${has ? `<div class="pm"><b>🌙 我的牌義</b>${u.u ? `<p><b>正位：</b>${esc(u.u)}</p>` : ""}${u.r ? `<p><b>逆位：</b>${esc(u.r)}</p>` : ""}${u.n ? `<p><b>心得：</b>${esc(u.n)}</p>` : ""}</div>` : ""}<div class="row" style="margin:8px 0 0"><button id="ed">✎ ${has ? "編輯" : "新增"}我的牌義</button><button id="ci">${im ? "更換" : "上傳"}牌面圖</button>${im ? `<button id="cd">刪除卡面</button>` : ""}</div></div>`;
+        return `<div class="dbody"><h3>${c.sym} ${c.z} <small class="dim">${c.e}・${c.sub}・${esc(deckName(deckId))}</small></h3><p class="${rev !== true ? "hl" : "dim"}"><b>正位：</b>${c.u}</p><p class="${rev === true ? "hl" : "dim"}"><b>逆位：</b>${c.r}</p>${meaningsHtml(u)}<div class="row" style="margin:8px 0 0"><button id="ed">✎ ${has ? "編輯" : "新增"}我的牌義</button><button id="ci">${im ? "更換" : "上傳"}牌面圖</button>${im ? `<button id="cd">刪除卡面</button>` : ""}</div></div>`;
       }
       function show(id, rev, opts) {
         if (editing) return;
@@ -170,7 +271,6 @@ const MA =
         } else {
           box.innerHTML = `<div class="det">${im ? `<img src="${im}" class="${rev === true ? "rev" : ""}" alt="">` : ""}${dbodyHtml(c, u, has, im, rev)}</div>`;
         }
-        bindDetActions(id, rev);
       }
       function edit() {
         editing = true;
@@ -191,23 +291,6 @@ const MA =
         } else {
           box.innerHTML = `<div class="det">${im ? `<img src="${im}" class="${rev === true ? "rev" : ""}" alt="">` : ""}${form}</div>`;
         }
-        $("#es").onclick = () => {
-          const v = {
-            u: $("#eu").value.trim(),
-            r: $("#er").value.trim(),
-            n: $("#en").value.trim(),
-          };
-          if (!CU[deckId]) CU[deckId] = {};
-          if (v.u || v.r || v.n) CU[deckId][id] = v;
-          else delete CU[deckId][id];
-          store.set("tarot-custom", CU);
-          editing = false;
-          show(cur[0], cur[1], { keepImg: true });
-        };
-        $("#ec").onclick = () => {
-          editing = false;
-          show(cur[0], cur[1], { keepImg: true });
-        };
       }
       function face(c, rev, tag, did) {
         const im = getImg(c.id, did);
@@ -269,16 +352,13 @@ const MA =
       function tipHTML(id) {
         const c = D[id],
           u = getCU(id),
-          im = getImg(id),
-          has = u.u || u.r || u.n;
-        return `${im ? `<img src="${im}" alt="">` : ""}<h3>${c.sym} ${esc(c.z)}</h3><p class="dim">${esc(c.e)}・${esc(c.sub)}・${esc(deckName(deckId))}</p><p><b>正位：</b>${esc(c.u)}</p><p><b>逆位：</b>${esc(c.r)}</p>${has ? `<div class="pm"><b>🌙 我的牌義</b>${u.u ? `<p><b>正位：</b>${esc(u.u)}</p>` : ""}${u.r ? `<p><b>逆位：</b>${esc(u.r)}</p>` : ""}${u.n ? `<p><b>心得：</b>${esc(u.n)}</p>` : ""}</div>` : ""}`;
+          im = getImg(id);
+        return `${im ? `<img src="${im}" alt="">` : ""}<h3>${c.sym} ${esc(c.z)}</h3><p class="dim">${esc(c.e)}・${esc(c.sub)}・${esc(deckName(deckId))}</p><p><b>正位：</b>${esc(c.u)}</p><p><b>逆位：</b>${esc(c.r)}</p>${meaningsHtml(u)}`;
       }
       function tipAt(el, id) {
         const tip = $("#tip");
         tip.innerHTML = tipHTML(id);
         revealPanel(tip);
-        tip.classList.remove("hide");
-        tip.hidden = false;
         const r = el.getBoundingClientRect(),
           tw = tip.offsetWidth,
           th = tip.offsetHeight;
@@ -291,22 +371,8 @@ const MA =
         tip.style.left = left + "px";
         tip.style.top = top + "px";
       }
-      const tipHide = () => {
-        const tip = $("#tip");
-        if (!tip) return;
-        tip.classList.add("hide");
-        tip.hidden = true;
-        tip.style.display = "none";
-        tip.innerHTML = "";
-      };
+      const tipHide = () => hidePanel($("#tip"));
       let drawEpoch = 0;
-      function hidePanel(el) {
-        if (!el) return;
-        el.classList.add("hide");
-        el.hidden = true;
-        el.style.display = "none";
-        el.innerHTML = "";
-      }
       function clearDrawPanels() {
         editing = false;
         cur = [null, undefined];
@@ -422,7 +488,7 @@ const MA =
         bindDeck();
         bindBrokenImgs($("#deck"));
         if (drawn.length) renderDraw();
-        if (!$("#v-hist").classList.contains("hide")) renderList();
+        if (!isHidden($("#v-hist"))) renderList();
       }
       function preloadSrc(src) {
         return new Promise((ok, no) => {
@@ -539,13 +605,7 @@ const MA =
           await Promise.all(cards.map((el) => paintCardImg(el, im, useEager)));
         else cards.forEach((el) => clearCardImg(el));
         const box = detBox();
-        const open =
-          box &&
-          !box.classList.contains("hide") &&
-          !box.hidden &&
-          box.style.display !== "none" &&
-          cur[0] === id;
-        if (!open) return;
+        if (!isPanelOpen(box) || cur[0] !== id) return;
         if (!im) {
           show(id, rev);
           return;
@@ -581,17 +641,6 @@ const MA =
           const cd = document.createElement("button");
           cd.id = "cd";
           cd.textContent = "刪除卡面";
-          cd.onclick = async function () {
-            if (this.dataset.s) {
-              try {
-                await remImg(id);
-              } catch (e) {}
-              softRefreshView(id, rev);
-            } else {
-              this.dataset.s = 1;
-              this.textContent = "再按一次確認刪除";
-            }
-          };
           row.appendChild(cd);
         }
       }
@@ -599,14 +648,7 @@ const MA =
         redraw();
         // 只有詳情已打開時才更新，避免進牌庫／雲端同步後自動選中一張牌
         if (id == null || id === undefined || editing) return;
-        const box = detBox();
-        if (
-          box &&
-          !box.classList.contains("hide") &&
-          !box.hidden &&
-          box.style.display !== "none"
-        )
-          show(id, rev);
+        if (isPanelOpen(detBox())) show(id, rev);
       }
       const shrink = (f) =>
         new Promise((ok, no) => {
@@ -700,8 +742,7 @@ const MA =
           db.dataset.s = "";
           db.textContent = "刪除類別";
         }
-        $("#deck-det").classList.add("hide");
-        $("#deck-det").innerHTML = "";
+        hidePanel($("#deck-det"));
         redraw();
       }
       fillDeckSel();
@@ -725,28 +766,28 @@ const MA =
         d.name = name;
         saveDecks();
         fillDeckSel();
-        if (!$("#deck-det").classList.contains("hide")) show(...cur);
+        if (isPanelOpen($("#deck-det"))) show(...cur);
       };
-      $("#ddel").onclick = function () {
+      $("#ddel").onclick = async function () {
         if (DECKS.length <= 1) {
           alert("至少保留一個牌組類別");
           return;
         }
-        if (!this.dataset.s) {
-          this.dataset.s = 1;
-          this.textContent = "再按一次確認刪除類別";
-          return;
-        }
-        this.dataset.s = "";
-        this.textContent = "刪除類別";
-        const gone = deckId;
-        remDeckImgs(gone).then(() => {
-          delete CU[gone];
-          store.set("tarot-custom", CU);
-          DECKS = DECKS.filter((d) => d.id !== gone);
-          saveDecks();
-          setDeck(DECKS[0].id);
-        });
+        await armConfirm(
+          this,
+          async function () {
+            this.dataset.s = "";
+            this.textContent = "刪除類別";
+            const gone = deckId;
+            await remDeckImgs(gone);
+            delete CU[gone];
+            store.set("tarot-custom", CU);
+            DECKS = DECKS.filter((d) => d.id !== gone);
+            saveDecks();
+            setDeck(DECKS[0].id);
+          },
+          "再按一次確認刪除類別",
+        );
       };
       $("#fi").onchange = async (e) => {
         const packedList = [];

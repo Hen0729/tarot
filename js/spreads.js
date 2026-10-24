@@ -150,15 +150,20 @@
         bindBrokenImgs($("#slots"));
         $("#acts").innerHTML =
           `<span class="mut">${esc(spName)}</span><button id="all">全部翻開</button><button id="ai">✨ 統整解析</button><button class="pri" id="sv">儲存整個牌陣到紀錄</button>`;
-        $("#all").onclick = () => {
+      }
+      $("#acts").addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn || !$("#acts").contains(btn)) return;
+        if (btn.id === "all") {
           drawn.forEach((d) => (d.open = true));
           renderDraw();
           // 全部翻開後不要留著「上一張點開」的單卡牌義
           hidePanel($("#det"));
           cur = [null, undefined];
           tipHide();
-        };
-        $("#sv").onclick = () => {
+          return;
+        }
+        if (btn.id === "sv") {
           hist.unshift({
             id: Date.now(),
             t: new Date().toLocaleString("zh-TW"),
@@ -176,8 +181,23 @@
             '<span class="mut">已儲存整個牌陣！可到「我的紀錄」補寫筆記。</span>';
           $("#acts").innerHTML = "";
           tab("hist");
-        };
-      }
+          return;
+        }
+        if (btn.id === "ai") {
+          if (typeof analyze !== "function" || !drawn.length) return;
+          drawn.forEach((d) => (d.open = true));
+          renderDraw();
+          const h = {
+            spread: spName,
+            q: $("#q").value,
+            deck: deckId,
+            cards: drawn.map((d, i) => ({ i: d.id, r: d.r, p: pos[i] })),
+          };
+          analyze(h, $("#aibox"), () => {
+            drawAI = h.ai;
+          });
+        }
+      });
       $("#go").onclick = () => {
         // 先清畫面，避免上一輪翻開的牌／牌義在新抽牌失敗或尚未重繪時殘留
         drawAI = "";
@@ -305,7 +325,7 @@
       $("#lay").onchange = () => {
         store.set("tarot-lay", $("#lay").checked);
         renderDraw();
-        if (!$("#v-hist").classList.contains("hide")) renderList();
+        if (!isHidden($("#v-hist"))) renderList();
       };
       function renderCG() {
         let h = "";
@@ -403,23 +423,15 @@
       function tab(t) {
         tipHide();
         ["draw", "hist", "deck", "sp"].forEach((k) => {
-          $("#v-" + k).classList.toggle("hide", k != t);
+          setHidden($("#v-" + k), k != t);
           $("#t-" + k).classList.toggle("on", k == t);
         });
         if (t == "deck") {
-          const dd = $("#deck-det");
-          if (dd) {
-            dd.classList.add("hide");
-            dd.innerHTML = "";
-          }
+          hidePanel($("#deck-det"));
           cur = [null, undefined];
         }
         if (t == "draw") {
-          const dd = $("#det");
-          if (dd) {
-            dd.classList.add("hide");
-            dd.innerHTML = "";
-          }
+          hidePanel($("#det"));
           cur = [null, undefined];
           editing = false;
         }

@@ -111,20 +111,7 @@ const cardsOf = (a) =>
             "），可稍後再試。</p>";
         }
       }
-      document.addEventListener("click", (e) => {
-        if (e.target.id != "ai" || !drawn.length) return;
-        drawn.forEach((d) => (d.open = true));
-        renderDraw();
-        const h = {
-          spread: spName,
-          q: $("#q").value,
-          deck: deckId,
-          cards: drawn.map((d, i) => ({ i: d.id, r: d.r, p: pos[i] })),
-        };
-        analyze(h, $("#aibox"), () => {
-          drawAI = h.ai;
-        });
-      });
+      /* #ai 抽牌按鈕改由 #acts 事件委派處理（spreads.js） */
       const rl0 = renderList;
       renderList = function () {
         rl0();
