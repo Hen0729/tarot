@@ -108,17 +108,17 @@
         $("#msp").value = SPS()[b] ? b : "three";
       }
       fillSp();
-      /** 依牌數／格數決定基礎牌面尺寸 class */
+      /** 依牌數／格數決定基礎牌面尺寸 class（寧可略縮＋橫向捲，也不要縮到看不清） */
       function boardSizeClass(n, lay, useLay) {
         if (!useLay || !lay || lay.length < n)
-          return n >= 10 ? " xs" : n >= 6 ? " sm" : "";
+          return n >= 12 ? " sm" : "";
         const W = Math.max(...lay.map((l) => l[0])) + 1,
           H = Math.max(...lay.map((l) => l[1])) + 1;
-        if (W >= 6 || H >= 5 || n >= 10) return " xs";
-        if (W >= 4 || H >= 3 || n >= 6) return " sm";
+        if (W >= 8 || H >= 6 || n >= 14) return " xs";
+        if (W >= 5 || H >= 4 || n >= 7) return " sm";
         return "";
       }
-      /** 複雜牌陣依容器寬度縮 --cw／--ch，避免橫向溢出或過擠 */
+      /** 複雜牌陣微調尺寸；低於下限就維持可讀大小，交給 overflow 橫向捲 */
       function fitBoard(root, lay, useLay) {
         if (!root) return;
         ["--cw", "--ch", "--cg", "--lh"].forEach((k) =>
@@ -130,26 +130,26 @@
         const avail = Math.max(200, root.clientWidth || root.offsetWidth || 320);
         const baseCw =
           parseFloat(getComputedStyle(root).getPropertyValue("--cw")) || 112;
-        const gap0 = W >= 6 || H >= 5 ? 8 : W >= 4 ? 10 : 14;
-        const label0 = 28;
+        const MIN = 84;
+        const gap0 = W >= 6 || H >= 5 ? 10 : W >= 4 ? 12 : 14;
+        const label0 = 26;
         let cw = Math.min(
           baseCw,
           Math.floor((avail - gap0) / W - gap0),
         );
-        cw = Math.max(52, cw);
-        // 過高時再縮一點，減少整頁狂捲
-        const maxH = Math.min(window.innerHeight * 0.72, 720);
+        cw = Math.max(MIN, Math.min(baseCw, cw));
+        // 過高只輕微再縮，優先保留牌面可讀
+        const maxH = Math.min(window.innerHeight * 0.88, 960);
         let ch = Math.round(cw * (184 / 112));
         let cellH = ch + label0;
         if (H * cellH > maxH) {
-          cellH = Math.floor(maxH / H);
-          ch = Math.max(78, cellH - label0);
-          cw = Math.min(cw, Math.round(ch * (112 / 184)));
-          cw = Math.max(52, cw);
+          const target = Math.floor(maxH / H) - label0;
+          ch = Math.max(Math.round(MIN * (184 / 112)), target);
+          cw = Math.max(MIN, Math.min(cw, Math.round(ch * (112 / 184))));
           ch = Math.round(cw * (184 / 112));
         }
-        const cg = Math.max(4, Math.min(gap0, Math.floor(cw / 9)));
-        const lh = Math.max(18, Math.min(28, Math.round(cw * 0.28)));
+        const cg = Math.max(6, Math.min(gap0, Math.floor(cw / 8)));
+        const lh = Math.max(20, Math.min(28, Math.round(cw * 0.26)));
         root.style.setProperty("--cw", cw + "px");
         root.style.setProperty("--ch", ch + "px");
         root.style.setProperty("--cg", cg + "px");
@@ -163,10 +163,19 @@
           return `<div class="flow">${P.map((p, i) => `<div class="slot"><div class="lb" title="${esc(p)}">${esc(p)}</div>${fn(i)}</div>`).join("")}</div>`;
         const W = Math.max(...lay.map((l) => l[0])) + 1,
           H = Math.max(...lay.map((l) => l[1])) + 1;
+        // 同格有橫置牌時，直立那張標成 under（凱爾特十字「現況」）
+        const crossed = new Set(
+          lay
+            .filter((l) => l[2])
+            .map((l) => l[0] + "," + l[1]),
+        );
         return `<div class="lay" data-w="${W}" data-h="${H}" style="width:calc(${W}*(var(--cw,112px) + var(--cg,14px)));height:calc(${H}*(var(--ch,184px) + var(--lh,40px)))">${P.map(
           (p, i) => {
             const [x, y, r] = lay[i];
-            return `<div class="slot${r ? " rot" : ""}" style="left:calc(${x}*(var(--cw,112px) + var(--cg,14px)));top:calc(${y}*(var(--ch,184px) + var(--lh,40px)));width:var(--cw,112px)"><div class="lb" title="${esc(p)}">${esc(p)}</div>${fn(i)}</div>`;
+            const under = !r && crossed.has(x + "," + y);
+            const cls =
+              "slot" + (r ? " rot" : "") + (under ? " under" : "");
+            return `<div class="${cls}" style="left:calc(${x}*(var(--cw,112px) + var(--cg,14px)));top:calc(${y}*(var(--ch,184px) + var(--lh,40px)));width:var(--cw,112px)"><div class="lb" title="${esc(p)}">${esc(p)}</div>${fn(i)}</div>`;
           },
         ).join("")}</div>`;
       }

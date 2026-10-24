@@ -1,6 +1,6 @@
 /* global self, caches, fetch */
 /* 版本與 js/version.js 的 CACHE_VERSION 保持一致（改程式只 bump 那一處後，請同步改這裡或跑 stamp） */
-const CACHE_VERSION = "dace04bb";
+const CACHE_VERSION = "9c8d8648";
 const CACHE = "tarot-" + CACHE_VERSION;
 
 const PRECACHE = [

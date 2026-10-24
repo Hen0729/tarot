@@ -400,16 +400,16 @@
         box-sizing: border-box;
       }
       .slots.sm {
-        --cw: 86px;
-        --ch: 148px;
-        --cg: 10px;
-        --lh: 24px;
+        --cw: 98px;
+        --ch: 168px;
+        --cg: 12px;
+        --lh: 26px;
       }
       .slots.xs {
-        --cw: 68px;
-        --ch: 116px;
-        --cg: 6px;
-        --lh: 20px;
+        --cw: 86px;
+        --ch: 148px;
+        --cg: 8px;
+        --lh: 22px;
       }
       .slots.xs .slot,
       .hs-board.xs .slot {
@@ -434,21 +434,21 @@
         margin: 8px 0;
       }
       .hs-board {
-        --cw: 78px;
-        --ch: 134px;
-        --cg: 8px;
+        --cw: 86px;
+        --ch: 148px;
+        --cg: 10px;
         --lh: 22px;
       }
       .hs-board.sm {
-        --cw: 70px;
-        --ch: 120px;
-        --cg: 6px;
+        --cw: 78px;
+        --ch: 134px;
+        --cg: 8px;
         --lh: 20px;
       }
       .hs-board.xs {
-        --cw: 58px;
-        --ch: 100px;
-        --cg: 4px;
+        --cw: 70px;
+        --ch: 120px;
+        --cg: 6px;
         --lh: 18px;
       }
       .slots .card,
@@ -479,29 +479,56 @@
       .hs .card .sym {
         font-size: 20px;
       }
-      .slot.rot {
-        z-index: 2;
+      /* 凱爾特十字：現況在下、挑戰微偏橫壓，兩張都露出可點 */
+      .slot.under {
+        z-index: 1;
       }
-      .slot.rot .card,
+      .slot.under .lb {
+        position: relative;
+        z-index: 4;
+      }
+      .slot.rot {
+        z-index: 3;
+      }
+      .slot.rot .card {
+        transform: rotate(90deg) scale(0.86);
+        margin-top: calc(var(--ch, 184px) * 0.1);
+        margin-left: calc(var(--cw, 112px) * 0.16);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+      }
       .slot.rot .card:hover {
-        transform: rotate(90deg) scale(0.82);
-        margin-top: 20px;
+        transform: rotate(90deg) scale(0.86) translateY(-3px);
+        border-color: var(--acc);
       }
       .slot.rot .lb {
         position: absolute;
-        top: calc(var(--ch, 184px) + 8px);
-        left: 0;
-        right: 0;
+        top: calc(var(--ch, 184px) * 0.42);
+        left: calc(var(--cw, 112px) + 6px);
+        right: auto;
+        width: max-content;
+        max-width: 5.2em;
+        height: auto;
+        padding: 2px 5px;
+        border-radius: 4px;
+        white-space: normal;
+        line-height: 1.2;
+        text-align: left;
+        background: color-mix(in srgb, var(--bg) 90%, transparent);
+        z-index: 4;
       }
       @media (max-width: 640px) {
         .slots:not(.xs):not(.sm) {
-          --cw: 96px;
-          --ch: 164px;
+          --cw: 100px;
+          --ch: 170px;
         }
         .slots.sm {
-          --cw: 72px;
-          --ch: 124px;
-          --cg: 8px;
+          --cw: 90px;
+          --ch: 154px;
+          --cg: 10px;
+        }
+        .slots.xs {
+          --cw: 80px;
+          --ch: 136px;
         }
       }
       .card.back.empty {
